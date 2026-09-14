@@ -1,0 +1,31 @@
+{
+  "name": "voidfun",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "compile": "node scripts/compile.mjs",
+    "test": "node scripts/test.mjs"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "viem": "2.56.3"
+  },
+  "devDependencies": {
+    "@openzeppelin/contracts": "5.6.1",
+    "@playwright/test": "^1.63.0",
+    "prettier": "^3.9.6",
+    "prettier-plugin-solidity": "^2.4.1",
+    "solc": "0.8.37",
+    "vite": "^7.3.0"
+  },
+  "overrides": {
+    "tmp": "0.2.7"
+  },
+  "optionalDependencies": {
+    "@foundry-rs/anvil-win32-amd64": "1.7.1"
+  }
+}

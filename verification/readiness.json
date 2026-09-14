@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-09-14T21:02:01.773Z",
+  "chainId": 46630,
+  "runtimeHasCode": true,
+  "priceHasCode": true,
+  "toll": [
+    "3901875631617",
+    "6"
+  ],
+  "initialFdvEth": "1.170562689484835361",
+  "operatorBalanceEth": "0.138057379747025647",
+  "activationStatus": 200,
+  "activation": {
+    "state": {
+      "id": "1",
+      "revision": "6",
+      "owner": "0xA7a12A1D7000e40Ecc18a62Af456791b89cB2770",
+      "active": true,
+      "tollUsd": "10000000000000000",
+      "uri": "",
+      "splits": []
+    },
+    "stateHash": "0x6c638b8176235f674967904cd74a8d1632268bbe0f00875d478399d0224ef278",
+    "deadline": "1789420026",
+    "registry": "0x0b7d245183f157cba534153d81f946b99a6b52e8"
+  }
+}

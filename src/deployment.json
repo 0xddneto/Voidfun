@@ -1,0 +1,13 @@
+{
+  "chainId": 46630,
+  "chainName": "Robinhood Testnet",
+  "rpc": "https://robinhood-sepolia-rpc.publicnode.com",
+  "explorer": "https://explorer.testnet.chain.robinhood.com",
+  "collection": "0x4dfe1411249802b06d7c4fc7953e3240418b241c",
+  "deedId": "1",
+  "runtime": "0x57987b1291b24bef9e655c6c03ac21f02b1fafad",
+  "price": "0x3369ce6a1cee163b79a07d54eafcfbc0e7cb39ca",
+  "gateway": null,
+  "implementation": null,
+  "status": "awaiting-deployment"
+}
