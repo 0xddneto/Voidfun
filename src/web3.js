@@ -1,3 +1,5 @@
+import { connect, selectedProvider } from "./wallets";
+export { connect } from "./wallets";
 import {
   createPublicClient,
   createWalletClient,
@@ -35,28 +37,20 @@ export async function query(fn, args = []) {
     data: result,
   });
 }
-export async function connect() {
-  if (!window.ethereum)
-    throw Error("Open this site in an EVM wallet browser or install a wallet.");
-  const [account] = await window.ethereum.request({
-    method: "eth_requestAccounts",
-  });
-  if (!account) throw Error("No wallet selected.");
-  return account;
-}
 export async function wallet(expected) {
   const account = await connect();
   if (expected && account.toLowerCase() !== expected.toLowerCase())
     throw Error("Wallet changed. Review the operation again.");
+  const provider = selectedProvider();
   const id = "0x" + chain.id.toString(16);
   try {
-    await window.ethereum.request({
+    await provider.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: id }],
     });
   } catch (e) {
     if (e.code !== 4902) throw e;
-    await window.ethereum.request({
+    await provider.request({
       method: "wallet_addEthereumChain",
       params: [
         {
@@ -68,7 +62,7 @@ export async function wallet(expected) {
         },
       ],
     });
-    await window.ethereum.request({
+    await provider.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: id }],
     });
@@ -76,7 +70,7 @@ export async function wallet(expected) {
   return createWalletClient({
     account,
     chain,
-    transport: custom(window.ethereum),
+    transport: custom(provider),
   });
 }
 export async function confirmed(hash, onStatus) {

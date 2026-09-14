@@ -51,3 +51,13 @@ Nenhum contrato do protocolo precisa ser reimplantado para publicar esta aplica�
 Após confirmar os valores, `scripts/deploy.mjs` exige `--trade-bps`, `--protocol-share-bps`, `--creation-fee-wei` e `--treasury` explícitos. `VOIDFUN_DEPLOYER_KEY` deve ser injetada somente no ambiente do processo. Se for usada a carteira compartilhada do protocolo, manter seu lock de operador durante toda a execução.
 
 O script limita a rede a 46630, persiste a transação assinada localmente antes de transmitir, confirma recibos e registra `deployments/46630.json`. Retentativas reutilizam a mesma transação. Arquivos assinados ficam em `.tools/`, ignorado pelo Git. Não executar com taxas não confirmadas. A fonte e o script estão preparados, mas isso não representa implantação, verificação pública de código ou smoke test já concluídos.
+
+## Conexão de carteiras
+
+A interface descobre extensões compatíveis com EIP-6963 e mantém fallback EIP-1193 (`window.ethereum` / `providers`). A escolha do usuário é mantida ao trocar de rede e assinar; não há restrição a Rabby, Brave ou marcas específicas. Rejeição, pedido pendente, ausência de extensão e desconexão têm estados visíveis. Isso não implica suporte a carteiras que não implementam Ethereum/EVM ou à Robinhood Testnet em todas elas.
+
+WalletConnect usa `@walletconnect/ethereum-provider`, com QR code e link para copiar no celular. Para ativar o transporte real, criar um projeto próprio em https://dashboard.reown.com, permitir https://voidfun-coral.vercel.app e configurar `VITE_WALLETCONNECT_PROJECT_ID` no ambiente de build da Vercel. É um identificador público, não uma chave privada. Reimplantar o site após configurar. Sem ele, a interface informa que conexões móveis ainda não estão disponíveis; extensões continuam funcionando. Não usar IDs de projetos de terceiros.
+
+`node scripts/test-wallets-ui.mjs` (servidor local em 3050 e Chrome instalado) verifica cinco cenários de conexão usando provedores controlados. O caso WalletConnect verifica a interface com relay simulado, não substitui aprovação por uma carteira real via serviço WalletConnect. A configuração real permanece pendente do Project ID.
+
+Referências: https://eips.ethereum.org/EIPS/eip-6963 e https://docs.reown.com/advanced/providers/ethereum.

@@ -575,3 +575,76 @@ a:focus-visible {
   padding: 0;
   accent-color: #748d40;
 }
+.wallet-dialog {
+  width: min(460px, calc(100% - 32px));
+  padding: 28px;
+  border: 1px solid #d9ddcd;
+  border-radius: 16px;
+  background: #fcfcf6;
+  color: #20241c;
+  box-shadow: 0 20px 80px #0003;
+}
+.wallet-dialog::backdrop {
+  background: #20241c88;
+}
+.wallet-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wallet-dialog-head h2 {
+  margin: 0;
+  font-size: 26px;
+}
+.wallet-dialog-head button {
+  border: 0;
+  font-size: 26px;
+  padding: 0 8px;
+  background: transparent;
+  color: inherit;
+}
+.wallet-dialog p {
+  font-size: 13px;
+}
+.wallet .wallet-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 10px 0;
+  background: #eef2e3;
+  color: #20241c;
+  padding: 17px;
+}
+.wallet .wallet-rescan {
+  margin-top: 12px;
+  background: transparent;
+  color: #566143;
+  border-color: #d6d8cc;
+}
+.wallet-qr {
+  text-align: center;
+}
+.wallet-qr img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 16px auto;
+  border-radius: 10px;
+}
+.wallet .wallet-qr button {
+  background: #e8edda;
+  color: #20241c;
+}
+.wallet-actions {
+  display: flex;
+  gap: 10px;
+}
+.wallet .wallet-option span {
+  font-size: 11px;
+}
+.wallet-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+}

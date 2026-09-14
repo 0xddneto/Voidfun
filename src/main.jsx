@@ -1,3 +1,5 @@
+import WalletConnector from "./WalletConnector";
+import { watchAccount } from "./wallets";
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { formatEther, parseEther } from "viem";
@@ -134,18 +136,13 @@ function App() {
     }
   }
   useEffect(() => {
-    window.ethereum
-      ?.request({ method: "eth_accounts" })
-      .then((a) => setAccount(a[0]))
-      .catch(() => {});
-    const handler = (a) => {
-      setAccount(a[0]);
+    const unsubscribe = watchAccount((address) => {
+      setAccount(address);
       setQuote();
-    };
-    window.ethereum?.on?.("accountsChanged", handler);
+    });
     const hash = localStorage.getItem("voidfun-pending");
     if (hash) confirmed(hash, setStatus).catch(() => {});
-    return () => window.ethereum?.removeListener?.("accountsChanged", handler);
+    return unsubscribe;
   }, []);
   useEffect(() => {
     refresh();
@@ -334,12 +331,17 @@ function App() {
         </nav>
         <div className="wallet">
           <span className="network">● RH TESTNET</span>
-          <button
+          <WalletConnector
+            account={account}
             disabled={busy}
-            onClick={() => run(async () => setAccount(await connect()))}
-          >
-            {account ? short(account) : "Connect wallet"}
-          </button>
+            onConnected={(address, name) => {
+              setAccount(address);
+              setStatus({
+                kind: "success",
+                text: name + " connected: " + short(address),
+              });
+            }}
+          />
         </div>
       </header>
       <div className="test-banner">
