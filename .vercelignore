@@ -1,0 +1,10 @@
+.git
+.tools
+.env
+.env.*
+node_modules
+dist
+artifacts
+verification
+contracts
+tests
