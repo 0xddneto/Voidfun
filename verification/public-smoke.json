@@ -1,0 +1,32 @@
+{
+  "chainId": 46630,
+  "gateway": "0x7c8EdE6CE0CDdc4d2Ac2094269EEE3448Ae0325F",
+  "transactions": {
+    "create": {
+      "hash": "0xf798e69d35fa7fa653ee7116d7f38cbefa200ac8550fe1219f29db3d987e9b41",
+      "block": "119581643",
+      "confirmed": true
+    },
+    "buy": {
+      "hash": "0x1a07dd6fa42306b0faaa36c4e615b7479d1b70a3e6f25951858e8686ec5fb7f9",
+      "block": "119581657",
+      "confirmed": true
+    },
+    "approve": {
+      "hash": "0x36401439192c8349c5faf371b59e0698df77a0e6756b8876a61fc043ccd7a974",
+      "block": "119581671",
+      "confirmed": true
+    },
+    "sell": {
+      "hash": "0xd207665b0c96001ac79a192a796f12a48d1e7812de03b478bab8faa5de7e7f2d",
+      "block": "119581682",
+      "confirmed": true
+    }
+  },
+  "curve": "0xd3Ce4c952eD3AAE0E63aDB3Ec25e53B5c80a237a",
+  "token": "0xAA9A5a77b3e0Dbd0400A45CFa06E53A802c702A1",
+  "passed": true,
+  "reserveWei": "1",
+  "creatorFeesWei": "1393000000000",
+  "voidfunFeesWei": "596999999999"
+}

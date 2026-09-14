@@ -7,7 +7,8 @@
   "deedId": "1",
   "runtime": "0x57987b1291b24bef9e655c6c03ac21f02b1fafad",
   "price": "0x3369ce6a1cee163b79a07d54eafcfbc0e7cb39ca",
-  "gateway": null,
-  "implementation": null,
-  "status": "awaiting-deployment"
+  "gateway": "0x7c8EdE6CE0CDdc4d2Ac2094269EEE3448Ae0325F",
+  "implementation": "0x16ba0e49c61bccb59e2a36c623aa2fd123eb2b81",
+  "status": "live-testnet",
+  "deploymentBlock": "119580707"
 }

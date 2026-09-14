@@ -1,6 +1,6 @@
 # Voidfun
 
-Launchpad experimental na Deed 0001 da Robinhood Testnet. **Ainda não implantada publicamente.** Não usar fundos reais. O protocolo VoidChains não foi alterado por este projeto.
+Launchpad experimental na Deed 0001 da Robinhood Testnet. **Implantada na Robinhood Testnet.** Não usar fundos reais. O protocolo VoidChains não foi alterado por este projeto.
 
 ## Como funciona
 
@@ -10,7 +10,7 @@ A curva começa com oferta S e reserva virtual V em ETH: preço inicial = V / S;
 
 No candidato atual, 80% da oferta é vendido antes do encerramento. Sem mudança ETH/USD, a referência de FDV chega a cerca de US$ 75.000. Isso não significa US$ 75.000 de liquidez real. A última compra devolve o excesso de ETH. Ao completar, compra e venda param permanentemente, e reserva e tokens remanescentes ficam no contrato. **Não existe migração, resgate ou retirada administrativa da reserva nesta versão de teste.**
 
-Leia [DECISOES-ROBINHOOD.md](DECISOES-ROBINHOOD.md) para distinguir decisões aceitas de parâmetros econômicos candidatos.
+Leia [DECISOES-ROBINHOOD.md](DECISOES-ROBINHOOD.md) para a configuração desta versão de teste.
 
 ## Desenvolvimento
 
@@ -26,7 +26,7 @@ npm run dev
 
 Com o servidor local aberto em 3050 e Chrome instalado, `node scripts/test-ui.mjs` valida layout, ausência de erros JavaScript e bloqueio de transações antes do deploy. `node scripts/check-readiness.mjs` consulta somente dados públicos da rede.
 
-`verification/local-tests.json` registra testes em Anvil: criação pelo gateway dentro do limite de gas, identidade, inicialização única, compra, venda, separação de taxas, conservação dos saldos, isolamento, encerramento e saque de taxas. Não é auditoria independente nem prova de invulnerabilidade. As capturas de interface são da versão sem implantação, com lista vazia real.
+`verification/local-tests.json` registra testes em Anvil: criação pelo gateway dentro do limite de gas, identidade, inicialização única, compra, venda, separação de taxas, conservação dos saldos, isolamento, encerramento e saque de taxas. Não é auditoria independente nem prova de invulnerabilidade. As capturas de interface são da versão prévia anterior; o site atual consulta o gateway implantado.
 
 ## Publicação na Deed
 
@@ -50,7 +50,7 @@ Nenhum contrato do protocolo precisa ser reimplantado para publicar esta aplica�
 
 Após confirmar os valores, `scripts/deploy.mjs` exige `--trade-bps`, `--protocol-share-bps`, `--creation-fee-wei` e `--treasury` explícitos. `VOIDFUN_DEPLOYER_KEY` deve ser injetada somente no ambiente do processo. Se for usada a carteira compartilhada do protocolo, manter seu lock de operador durante toda a execução.
 
-O script limita a rede a 46630, persiste a transação assinada localmente antes de transmitir, confirma recibos e registra `deployments/46630.json`. Retentativas reutilizam a mesma transação. Arquivos assinados ficam em `.tools/`, ignorado pelo Git. Não executar com taxas não confirmadas. A fonte e o script estão preparados, mas isso não representa implantação, verificação pública de código ou smoke test já concluídos.
+O script limita a rede a 46630, persiste a transação assinada localmente antes de transmitir, confirma recibos e registra `deployments/46630.json`. Retentativas reutilizam a mesma transação. Arquivos assinados ficam em `.tools/`, ignorado pelo Git. Não executar com taxas não confirmadas. A primeira implantação está registrada em `deployments/46630.json`. A validação on-chain está em `verification/deployed-code.json` e `verification/public-smoke.json`.
 
 ## Conexão de carteiras
 
@@ -61,3 +61,13 @@ WalletConnect usa `@walletconnect/ethereum-provider`, com QR code e link para co
 `node scripts/test-wallets-ui.mjs` (servidor local em 3050 e Chrome instalado) verifica cinco cenários de conexão usando provedores controlados. O caso WalletConnect verifica a interface com relay simulado, não substitui aprovação por uma carteira real via serviço WalletConnect. O projeto Reown Voidfun foi configurado em 2026-09-14 no plano Starter, com a origem https://voidfun-coral.vercel.app permitida e o Project ID público no ambiente Production da Vercel. A aprovação de uma conexão por uma carteira móvel real continua sendo uma etapa de teste manual.
 
 Referências: https://eips.ethereum.org/EIPS/eip-6963 e https://docs.reown.com/advanced/providers/ethereum.
+
+## Implantação ativa e teste público — 2026-09-14
+
+- Rede: Robinhood Testnet 46630, Deed 0001.
+- Gateway: `0x7c8EdE6CE0CDdc4d2Ac2094269EEE3448Ae0325F`.
+- Implementação: `0x16ba0e49c61bccb59e2a36c623aa2fd123eb2b81`.
+- Criação: 0 ETH. Negociação: 1%, repartida em 30% Voidfun / 70% criador. Receita Voidfun para `0xA7a12A1D7000e40Ecc18a62Af456791b89cB2770`. Pedágio independente.
+- Teste real executado com carteira operadora e fundos de faucet: criar VTEST, comprar com 0,0001 ETH, aprovar a quantidade exata e vender tudo. Nenhuma operação em mainnet. O token VTEST permanece disponível como exemplo real.
+- Verificação de bytecode: implementações comparadas com o compilado, excluindo valores imutáveis; gateway comparado excluindo também metadados de caminho de fonte. Identidade da Deed, Runtime, implementação e taxas verificadas separadamente. Isso não é um selo de auditoria nem verificação de fonte pelo explorador.
+- Após criação confirmada, a UI abre a página do token. Gráfico de curva calculado das reservas atuais; aba Trades e tabela vêm de eventos Trade confirmados. Valores históricos em USD usam o ETH/USD atual. O histórico é limitado às últimas 60 operações nos 100.000 blocos mais recentes; não é um indexador completo.

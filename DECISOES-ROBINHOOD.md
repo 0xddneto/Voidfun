@@ -9,12 +9,12 @@
 - O usuário aceita que esta versão de teste encerre compra e venda ao completar a curva, sem criar pool Uniswap. Não há promessa de venda ou retirada posterior da reserva.
 - Taxas da aplicação e pedágio da Deed são independentes. Aprovação de token na venda é para o contrato Curve, limitada ao valor escolhido na interface.
 
-## Parâmetros candidatos usados nos testes locais
+## Parâmetros da versão implantada na testnet
 
 - Supply fixo: 1 bilhão; 80% vendidos na curva e 20% retidos no encerramento. Esta proporção é uma escolha desta versão de teste, não uma afirmação sobre a configuração atual da PONs.
 - Taxa de negociação: 1%; 30% dessa taxa para a tesouraria Voidfun e 70% para o criador. Em uma compra de 1 ETH: 0,99 ETH entra na reserva, 0,003 ETH é receita Voidfun e 0,007 ETH é receita do criador; pedágio e gas são adicionais.
 - Criação: zero; buyback desligado.
-- Esses valores foram apresentados ao usuário para confirmação e ainda não foram fixados em implantação pública.
+- Após a instrução do usuário para concluir a launchpad funcional, estes valores foram usados na implantação de teste de 2026-09-14. Não representam configuração atual comprovada da PONs. Tesouraria Voidfun: carteira do usuário `0xA7a12A1D7000e40Ecc18a62Af456791b89cB2770`.
 - O minOut na interface é 99% da cotação; o prazo da execução é dez minutos. São condições normais da ordem, não uma promessa de impedir bots ou front-running.
 
 ## Fontes e limites

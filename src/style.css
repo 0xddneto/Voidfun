@@ -648,3 +648,97 @@ a:focus-visible {
   max-height: calc(100dvh - 32px);
   overflow: auto;
 }
+.chart-panel {
+  margin-top: 30px;
+  border: 1px solid #d9ddcd;
+  border-radius: 12px;
+  padding: 20px;
+  background: #fbfcf4;
+}
+.chart-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.chart-heading strong {
+  font-size: 24px;
+}
+.chart-tabs {
+  display: flex;
+  gap: 4px;
+}
+.chart-tabs button {
+  padding: 8px 10px;
+  font-size: 11px;
+  border: 0;
+}
+.chart-tabs .active {
+  background: #e4ecd5;
+}
+.chart-panel svg {
+  width: 100%;
+  height: auto;
+  margin-top: 20px;
+  display: block;
+}
+.chart-panel svg text {
+  font-size: 10px;
+  fill: #75816a;
+  font-family: inherit;
+}
+.chart-empty {
+  padding: 60px 10px;
+  text-align: center;
+  color: #75816a;
+  font-size: 13px;
+}
+.trade-history {
+  overflow: auto;
+}
+.trade-history h3 {
+  font-size: 18px;
+}
+.trade-history table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  text-align: left;
+}
+.trade-history th {
+  font-weight: 500;
+  color: #778369;
+}
+.trade-history td,
+.trade-history th {
+  padding: 10px 5px;
+  border-bottom: 1px solid #e4e9db;
+}
+.buy-text {
+  color: #65882f;
+}
+.sell-text {
+  color: #bc6251;
+}
+.trade-layout {
+  grid-template-columns: minmax(0, 1.6fr) minmax(310px, 1fr);
+  gap: 36px;
+}
+.trade-layout > .panel {
+  position: sticky;
+  top: 24px;
+}
+@media (max-width: 850px) {
+  .trade-layout {
+    grid-template-columns: 1fr;
+  }
+  .trade-layout > .panel {
+    position: static;
+  }
+  .chart-panel {
+    padding: 14px;
+  }
+  .chart-heading {
+    flex-wrap: wrap;
+  }
+}

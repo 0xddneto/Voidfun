@@ -1,3 +1,5 @@
+import CurveChart from "./CurveChart";
+import { decodeEventLog } from "viem";
 import WalletConnector from "./WalletConnector";
 import { watchAccount } from "./wallets";
 import React, { useEffect, useState } from "react";
@@ -11,6 +13,7 @@ import {
   execute,
   direct,
   confirmed,
+  abis,
 } from "./web3";
 import "./style.css";
 const num = (x, d = 4) =>
@@ -107,11 +110,16 @@ function App() {
         });
       }
       setList(rows.reverse());
-      setSelected((previous) =>
-        previous
-          ? (rows.find((r) => r.address === previous.address) ?? previous)
-          : previous,
-      );
+      setSelected((previous) => {
+        const wanted = window.location.hash.startsWith("#token/")
+          ? window.location.hash.slice(7)
+          : previous?.address;
+        return wanted
+          ? (rows.find(
+              (r) => r.address.toLowerCase() === wanted.toLowerCase(),
+            ) ?? previous)
+          : previous;
+      });
       const fee = await read(
         deployment.implementation,
         "Voidfun",
@@ -154,7 +162,7 @@ function App() {
     setQuote();
     setBalance(0n);
     setEarned(0n);
-    if (!selected) return;
+    if (!selected?.token) return;
     Promise.all([
       read(deployment.runtime, "Runtime", "quote", [1n]),
       account
@@ -178,7 +186,7 @@ function App() {
   }, [selected, account]);
   useEffect(() => {
     setQuote();
-    if (!selected || selected.complete || !amount) return;
+    if (!selected?.token || selected.complete || !amount) return;
     let live = true;
     const timer = setTimeout(async () => {
       try {
@@ -236,13 +244,29 @@ function App() {
     }
     const user = await connect();
     setAccount(user);
-    await execute(
+    const receipt = await execute(
       "createToken",
       [name.trim(), symbol.trim().toUpperCase(), uri.trim()],
       terms.fee,
       user,
       setStatus,
     );
+    const launched = receipt.logs
+      .filter(
+        (log) => log.address.toLowerCase() === deployment.gateway.toLowerCase(),
+      )
+      .map((log) => {
+        try {
+          return decodeEventLog({ abi: abis.Voidfun, ...log });
+        } catch {
+          return null;
+        }
+      })
+      .find((event) => event?.eventName === "Launched");
+    if (launched) {
+      setSelected({ address: launched.args.curve });
+      window.location.hash = "token/" + launched.args.curve;
+    }
     setView("explore");
     setName("");
     setSymbol("");
@@ -307,6 +331,7 @@ function App() {
           onClick={() => {
             setView("explore");
             setSelected();
+            window.location.hash = "";
           }}
         >
           void<span>fun</span>
@@ -318,6 +343,7 @@ function App() {
             onClick={() => {
               setView("explore");
               setSelected();
+              window.location.hash = "";
             }}
           >
             Explore
@@ -407,6 +433,7 @@ function App() {
                     key={r.address}
                     onClick={() => {
                       setSelected(r);
+                      window.location.hash = "token/" + r.address;
                       setSide("buy");
                       setAmount("");
                     }}
@@ -466,18 +493,6 @@ function App() {
             <div>
               <div className="eyebrow">YOUR IDEA, ON CHAIN</div>
               <h1>Start something.</h1>
-              <p>
-                Give your token a name. Its price starts from a $3,000 fully
-                diluted valuation reference and moves with buys and sells.
-              </p>
-              <div className="notice">
-                $3,000 is a pricing reference, not money deposited. The real
-                reserve starts at zero.
-              </div>
-              <p>
-                No opening penalty or waiting list. Earlier purchases get the
-                earlier curve price.
-              </p>
             </div>
             <form
               className="panel"
@@ -528,16 +543,12 @@ function App() {
                 </div>
                 <div>
                   <dt>Creation fee</dt>
-                  <dd>
-                    {terms ? eth(terms.fee) + " ETH" : "Pending configuration"}
-                  </dd>
+                  <dd>{terms ? eth(terms.fee) + " ETH" : "Loading…"}</dd>
                 </div>
                 <div>
                   <dt>Trading fee</dt>
                   <dd>
-                    {terms
-                      ? Number(terms.trade) / 100 + "%"
-                      : "Pending configuration"}
+                    {terms ? Number(terms.trade) / 100 + "%" : "Loading…"}
                   </dd>
                 </div>
               </dl>
@@ -564,9 +575,15 @@ function App() {
             </form>
           </section>
         )}
-        {view === "explore" && selected && (
+        {view === "explore" && selected?.token && (
           <>
-            <button className="back" onClick={() => setSelected()}>
+            <button
+              className="back"
+              onClick={() => {
+                setSelected();
+                window.location.hash = "";
+              }}
+            >
               ← All tokens
             </button>
             <section className="trade-layout">
@@ -581,6 +598,7 @@ function App() {
                 >
                   Token {short(selected.token)} ↗
                 </a>
+                <CurveChart curve={selected} ethUsd={ethUsd} />
                 <div className="metrics">
                   <div>
                     <small>Fully diluted valuation</small>
@@ -731,6 +749,7 @@ function App() {
           onClick={() => {
             setView("explore");
             setSelected();
+            window.location.hash = "";
           }}
         >
           void<span>fun</span>
