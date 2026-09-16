@@ -94,7 +94,7 @@ export async function confirmed(hash, onStatus) {
     });
     throw e;
   }
-  localStorage.removeItem("voidfun-pending");
+  localStorage.removeItem(`voidfun-pending:${deployment.runtime}`);
   if (receipt.status !== "success") {
     onStatus({ kind: "error", text: "Transaction reverted", hash });
     throw Error("Transaction reverted.");
@@ -103,7 +103,7 @@ export async function confirmed(hash, onStatus) {
   return receipt;
 }
 function requireNoPending() {
-  if (localStorage.getItem("voidfun-pending"))
+  if (localStorage.getItem(`voidfun-pending:${deployment.runtime}`))
     throw Error(
       "A transaction is still pending. Reload to check its receipt before sending another.",
     );
@@ -115,7 +115,7 @@ export async function direct(name, address, fn, args, account, onStatus) {
   await client.simulateContract({ ...spec, account: w.account });
   onStatus({ text: "Confirm in your wallet." });
   const hash = await w.writeContract(spec);
-  localStorage.setItem("voidfun-pending", hash);
+  localStorage.setItem(`voidfun-pending:${deployment.runtime}`, hash);
   onStatus({ kind: "pending", text: "Transaction submitted", hash });
   return confirmed(hash, onStatus);
 }
@@ -144,7 +144,7 @@ export async function execute(fn, args, value, account, onStatus) {
   await client.simulateContract({ ...spec, account: w.account });
   onStatus({ text: "Confirm in your wallet." });
   const hash = await w.writeContract(spec);
-  localStorage.setItem("voidfun-pending", hash);
+  localStorage.setItem(`voidfun-pending:${deployment.runtime}`, hash);
   onStatus({ kind: "pending", text: "Transaction submitted", hash });
   return confirmed(hash, onStatus);
 }

@@ -56,7 +56,7 @@ const artifact = (name) =>
 for (const address of [config.runtime, config.price])
   if (((await client.getCode({ address })) ?? "0x") === "0x")
     throw Error("Missing protocol bytecode");
-await client.readContract({
+if (!process.argv.includes("--implementation-only")) await client.readContract({
   address: config.runtime,
   abi: artifact("Runtime").abi,
   functionName: "quote",
@@ -154,6 +154,12 @@ const logic = await deploy("Voidfun", [
   share,
   creation,
 ]);
+if (process.argv.includes("--implementation-only")) {
+  state.implementation = logic; save();
+  fs.writeFileSync("src/deployment.json", JSON.stringify({...config,gateway:null,implementation:logic,status:"awaiting-manual-publication",deploymentBlock:"0"},null,2));
+  console.log("Implementation ready for manual publication:",logic);
+  process.exit(0);
+}
 const receipt = await send("publish", {
   to: config.runtime,
   data: encodeFunctionData({

@@ -5,35 +5,28 @@
     "creation": "0",
     "treasury": "0xa7a12a1d7000e40ecc18a62af456791b89cb2770",
     "publisher": "0x224385bd4dbe4c5cb0ab469fe06acda734541a94",
-    "runtime": "0x57987b1291b24bef9e655c6c03ac21f02b1fafad",
-    "price": "0x3369ce6a1cee163b79a07d54eafcfbc0e7cb39ca"
+    "runtime": "0xf59a0f7a9f0d64379af83354c64147379547e3af",
+    "price": "0x981b643bd4d26627aa1cc5a6863d2e24c95c0ebe"
   },
   "transactions": {
     "LaunchToken": {
-      "hash": "0x8af649de3eb1be881adedb125bc9007c32ce5fdfdf3fad1e94aaf028fcf3e7a1",
-      "block": "119580654",
-      "address": "0x9c1bb2bcdef3808f5467340f82690ecb383c1a51",
+      "hash": "0x12250a87c1a0d1b011b6f161ee29669d648bb4a18d5b5574f8db3d4e3c01f2fa",
+      "block": "120179268",
+      "address": "0xbd8283d71be8aabc4b2ecd7e9256238ebf9edbad",
       "confirmed": true
     },
     "LaunchCurve": {
-      "hash": "0x237478e783ce06602984acb6304e8dc87eaa0fc4ac98951588d1e6c8ea6073a9",
-      "block": "119580672",
-      "address": "0xaf8885e8c7fbb2dd829a2a6cc7c251a4989fc87e",
+      "hash": "0x3f05b6ec59c42513b87ad9de054d7bae5dd0f205448347acd593cb0db9f553ea",
+      "block": "120179326",
+      "address": "0xff5daf41128c1195c31b514730f8262d0c8ebaf1",
       "confirmed": true
     },
     "Voidfun": {
-      "hash": "0x1f010376941f5404595bf1d88bfdbb5dc2b9474e3104d57a7a806c7d71ccb1f3",
-      "block": "119580693",
-      "address": "0x16ba0e49c61bccb59e2a36c623aa2fd123eb2b81",
-      "confirmed": true
-    },
-    "publish": {
-      "hash": "0xce7507052f8bb9dca44a0f90a7c787e507d1af92bcf3ee492d56651b748f57de",
-      "block": "119580707",
-      "address": null,
+      "hash": "0x56d898804f6a63adf557b5d742abdb3a8362c67f814b953693f2a9a1e1341d39",
+      "block": "120179357",
+      "address": "0xd5d77c5bd692b42b2e99fb3708aab74084e5cdbd",
       "confirmed": true
     }
   },
-  "gateway": "0x7c8EdE6CE0CDdc4d2Ac2094269EEE3448Ae0325F",
-  "implementation": "0x16ba0e49c61bccb59e2a36c623aa2fd123eb2b81"
+  "implementation": "0xd5d77c5bd692b42b2e99fb3708aab74084e5cdbd"
 }

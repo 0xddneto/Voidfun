@@ -6,7 +6,7 @@ const d = JSON.parse(fs.readFileSync("src/deployment.json")),
 const c = createPublicClient({ transport: http(d.rpc) });
 assert.equal(await c.getChainId(), 46630);
 const result = { chainId: 46630, at: new Date().toISOString(), contracts: [] };
-for (const name of ["LaunchToken", "LaunchCurve", "Voidfun", "AppGateway"]) {
+for (const name of ["LaunchToken", "LaunchCurve", "Voidfun", ...(d.gateway ? ["AppGateway"] : [])]) {
   const a = JSON.parse(fs.readFileSync("artifacts/" + name + ".json")),
     address =
       name === "AppGateway" ? d.gateway : manifest.transactions[name].address;
@@ -48,6 +48,7 @@ const read = (address, name, functionName) =>
     abi: JSON.parse(fs.readFileSync("artifacts/" + name + ".json")).abi,
     functionName,
   });
+if(d.gateway){
 assert.equal(
   (await read(d.gateway, "AppGateway", "implementation")).toLowerCase(),
   d.implementation.toLowerCase(),
@@ -57,6 +58,10 @@ assert.equal(
   d.runtime.toLowerCase(),
 );
 assert.equal(await read(d.gateway, "AppGateway", "deedId"), 1n);
+}
+assert.equal((await read(d.implementation,"Voidfun","RUNTIME")).toLowerCase(),d.runtime.toLowerCase());
+assert.equal((await read(d.implementation,"Voidfun","PRICE")).toLowerCase(),d.price.toLowerCase());
+assert.equal(await read(d.runtime,"Runtime","PROTOCOL_BPS"),1000n);
 assert.equal(await read(d.implementation, "Voidfun", "TRADE_FEE_BPS"), 100n);
 assert.equal(
   await read(d.implementation, "Voidfun", "PROTOCOL_SHARE_BPS"),
@@ -72,5 +77,5 @@ fs.writeFileSync(
   JSON.stringify(result, null, 2),
 );
 console.log(
-  "PASS 4 deployed bytecodes match compiled source, gateway Deed/runtime and live fee configuration verified.",
+  "PASS deployed bytecodes, Runtime 90/10 and separate app fee configuration verified.",
 );

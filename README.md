@@ -1,6 +1,6 @@
 # Voidfun
 
-Launchpad experimental na Deed 0001 da Robinhood Testnet. **Implantada na Robinhood Testnet.** Não usar fundos reais. O protocolo VoidChains não foi alterado por este projeto.
+Launchpad experimental na Deed 0001 da Robinhood Testnet. **Reinicio 90/10: implementacao preparada, aguardando publicacao manual na nova Deed.** Não usar fundos reais. O protocolo VoidChains não foi alterado por este projeto.
 
 ## Como funciona
 
@@ -26,7 +26,7 @@ npm run dev
 
 Com o servidor local aberto em 3050 e Chrome instalado, `node scripts/test-ui.mjs` valida layout, ausência de erros JavaScript e bloqueio de transações antes do deploy. `node scripts/check-readiness.mjs` consulta somente dados públicos da rede.
 
-`verification/local-tests.json` registra testes em Anvil: criação pelo gateway dentro do limite de gas, identidade, inicialização única, compra, venda, separação de taxas, conservação dos saldos, isolamento, encerramento e saque de taxas. Não é auditoria independente nem prova de invulnerabilidade. As capturas de interface são da versão prévia anterior; o site atual consulta o gateway implantado.
+`verification/local-tests.json` registra testes em Anvil: criação pelo gateway dentro do limite de gas, identidade, inicialização única, compra, venda, separação de taxas, conservação dos saldos, isolamento, encerramento e saque de taxas. Não é auditoria independente nem prova de invulnerabilidade. A evidencia antiga esta em archive/pre-90-10. O ambiente novo nao lista tokens antigos e nao permite negociacao antes da publicacao manual.
 
 ## Publicação na Deed
 
@@ -62,12 +62,15 @@ WalletConnect usa `@walletconnect/ethereum-provider`, com QR code e link para co
 
 Referências: https://eips.ethereum.org/EIPS/eip-6963 e https://docs.reown.com/advanced/providers/ethereum.
 
-## Implantação ativa e teste público — 2026-09-14
+## Reinicio 90/10
 
-- Rede: Robinhood Testnet 46630, Deed 0001.
-- Gateway: `0x7c8EdE6CE0CDdc4d2Ac2094269EEE3448Ae0325F`.
-- Implementação: `0x16ba0e49c61bccb59e2a36c623aa2fd123eb2b81`.
-- Criação: 0 ETH. Negociação: 1%, repartida em 30% Voidfun / 70% criador. Receita Voidfun para `0xA7a12A1D7000e40Ecc18a62Af456791b89cB2770`. Pedágio independente.
-- Teste real executado com carteira operadora e fundos de faucet: criar VTEST, comprar com 0,0001 ETH, aprovar a quantidade exata e vender tudo. Nenhuma operação em mainnet. O token VTEST permanece disponível como exemplo real.
-- Verificação de bytecode: implementações comparadas com o compilado, excluindo valores imutáveis; gateway comparado excluindo também metadados de caminho de fonte. Identidade da Deed, Runtime, implementação e taxas verificadas separadamente. Isso não é um selo de auditoria nem verificação de fonte pelo explorador.
-- Após criação confirmada, a UI abre a página do token. Gráfico de curva calculado das reservas atuais; aba Trades e tabela vêm de eventos Trade confirmados. Valores históricos em USD usam o ETH/USD atual. O histórico é limitado às últimas 60 operações nos 100.000 blocos mais recentes; não é um indexador completo.
+O manifesto src/deployment.json aponta para a nova colecao e Runtime. A implementacao e seus contratos auxiliares sao novos; o gateway fica vazio ate a publicacao manual. O site nao lista tokens da versao anterior. Manifestos, testes publicos antigos e imagens anteriores estao em archive/pre-90-10.
+
+O pedagio pertence 90% ao dono da Deed e 10% ao tesouro VoidChains. A taxa da aplicacao permanece 1%, dividida em 30% Voidfun e 70% criador; criacao zero. Nenhuma destas taxas substitui gas.
+
+1. Mintar a nova Deed 0001 na Sepolia usando sua carteira.
+2. Em My Deeds, ativar a propriedade na Robinhood Testnet.
+3. Em Build, selecionar Robinhood, Deed 1 e a implementation registrada em src/deployment.json; initialization bytes = 0x.
+4. Assinar Publish application na propria carteira. Aguardar confirmacao e um bloco posterior.
+5. Registrar o gateway confirmado em src/deployment.json e publicar o frontend. O gateway deve pertencer ao novo Runtime e apontar para a implementacao esperada.
+6. Fazer o primeiro lancamento e compra/venda manual. Os dez testes locais ja cobrem o fluxo 90/10, mas nao substituem essa aceitacao publica.

@@ -1,30 +1,24 @@
 {
   "chainId": 46630,
-  "at": "2026-09-14T22:11:52.585Z",
+  "at": "2026-09-16T00:38:21.194Z",
   "contracts": [
     {
       "name": "LaunchToken",
-      "address": "0x9c1bb2bcdef3808f5467340f82690ecb383c1a51",
+      "address": "0xbd8283d71be8aabc4b2ecd7e9256238ebf9edbad",
       "bytecodeMatches": true,
       "comparison": "runtime excluding immutable values"
     },
     {
       "name": "LaunchCurve",
-      "address": "0xaf8885e8c7fbb2dd829a2a6cc7c251a4989fc87e",
+      "address": "0xff5daf41128c1195c31b514730f8262d0c8ebaf1",
       "bytecodeMatches": true,
       "comparison": "runtime excluding immutable values"
     },
     {
       "name": "Voidfun",
-      "address": "0x16ba0e49c61bccb59e2a36c623aa2fd123eb2b81",
+      "address": "0xd5d77c5bd692b42b2e99fb3708aab74084e5cdbd",
       "bytecodeMatches": true,
       "comparison": "runtime excluding immutable values"
-    },
-    {
-      "name": "AppGateway",
-      "address": "0x7c8EdE6CE0CDdc4d2Ac2094269EEE3448Ae0325F",
-      "bytecodeMatches": true,
-      "comparison": "executable code excluding immutable values and source-path metadata"
     }
   ]
 }
