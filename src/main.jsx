@@ -44,11 +44,28 @@ function App() {
     [balance, setBalance] = useState(0n),
     [earned, setEarned] = useState(0n);
   async function refresh() {
-    if (!deployment.gateway) {
-      setLoading(false);
-      return;
-    }
     try {
+      const fee = await read(
+        deployment.implementation,
+        "Voidfun",
+        "CREATE_FEE",
+      );
+      const trade = await read(
+        deployment.implementation,
+        "Voidfun",
+        "TRADE_FEE_BPS",
+      );
+      const share = await read(
+        deployment.implementation,
+        "Voidfun",
+        "PROTOCOL_SHARE_BPS",
+      );
+      setTerms({ fee, trade, share });
+      if (!deployment.gateway) {
+        setList([]);
+        setError("");
+        return;
+      }
       const oneDollar = await read(deployment.price, "NativePrice", "quote", [
         parseEther("1"),
       ]);
@@ -120,22 +137,6 @@ function App() {
             ) ?? previous)
           : previous;
       });
-      const fee = await read(
-        deployment.implementation,
-        "Voidfun",
-        "CREATE_FEE",
-      );
-      const trade = await read(
-        deployment.implementation,
-        "Voidfun",
-        "TRADE_FEE_BPS",
-      );
-      const share = await read(
-        deployment.implementation,
-        "Voidfun",
-        "PROTOCOL_SHARE_BPS",
-      );
-      setTerms({ fee, trade, share });
       setError("");
     } catch (e) {
       setError(e.shortMessage ?? e.message);
