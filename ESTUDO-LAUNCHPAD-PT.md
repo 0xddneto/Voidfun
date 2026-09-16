@@ -63,7 +63,7 @@ O publisher pode desregistrar o gateway; não devemos manter a única saída de 
 
 ## Receitas e limite do pedágio
 
-Separar quatro valores: preço da compra/venda; taxa da Voidfun; eventual parcela do criador do token; pedágio da Deed (95% ao proprietário/configuração e 5% ao protocolo), além do gás. Nenhuma taxa do app está aprovada neste documento.
+Separar quatro valores: preço da compra/venda; taxa da Voidfun; eventual parcela do criador do token; pedágio da Deed (90% ao proprietário/configuração e 10% ao protocolo), além do gás. Nenhuma taxa do app está aprovada neste documento.
 
 Uma transferência ERC-20 ou operação em Uniswap/PumpSwap externa não entra automaticamente no Runtime. Logo, não gera pedágio apenas porque o token nasceu na Deed. Uma pool com hook pode ter taxas próprias, mas isso não transforma outras pools em aplicações da Deed. Não restringir toda transferência do token para forçar receita. Se quisermos negociação pós-graduação dentro de um AMM próprio da Voidfun, isso é outro componente a desenhar, testar e auditar.
 

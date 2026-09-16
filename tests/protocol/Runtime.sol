@@ -10,7 +10,7 @@ contract Runtime is ReentrancyGuard {
     ISpaceRegistry public immutable registry;
     NativePrice public immutable price;
     address payable public immutable treasury;
-    uint256 public constant PROTOCOL_BPS = 500;
+    uint256 public constant PROTOCOL_BPS = 1000;
     uint256 public constant PAYOUT_GAS = 40000;
     uint256 public constant MAX_TOLL_USD = SpaceTypes.MAX_TOLL_USD;
     struct App { uint256 deedId; address publisher; bool registered; }

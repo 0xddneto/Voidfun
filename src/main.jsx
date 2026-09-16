@@ -148,7 +148,7 @@ function App() {
       setAccount(address);
       setQuote();
     });
-    const hash = localStorage.getItem("voidfun-pending");
+    const hash = localStorage.getItem(`voidfun-pending:${deployment.runtime}`);
     if (hash) confirmed(hash, setStatus).catch(() => {});
     return unsubscribe;
   }, []);
@@ -383,14 +383,14 @@ function App() {
         )}
         {!deployment.gateway && (
           <div className="notice">
-            Deployment is being prepared. Wallet transactions are disabled.
+            Fresh testnet release. Mint Deed 0001 and activate it on Robinhood, then publish Voidfun through VoidChains Build. Token creation opens after publication. Implementation: {deployment.implementation || "Preparing"}.
           </div>
         )}
         {view === "explore" && !selected && (
           <>
             <section className="hero">
               <div>
-                <div className="eyebrow">BUILT ON DEED 0001</div>
+                <div className="eyebrow">DEED 0001 / ROBINHOOD</div>
                 <h1>
                   Small beginnings.
                   <br />

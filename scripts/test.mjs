@@ -205,9 +205,9 @@ try {
   const toll = (await read(runtime, "Runtime", "quote", [1n]))[0];
   assert.equal(
     (await c.getBalance({ address: treasury })) - beforeTreasury,
-    (toll * 500n) / 10000n,
+    (toll * 1000n) / 10000n,
   );
-  ok("buy has 1% app fee and 30/70 split separate from Deed 95/5 toll");
+  ok("buy has 1% app fee and 30/70 split separate from Deed 90/10 toll");
   await assert.rejects(() => execute("sell", [curve, tokens, 0n], 0n, trader));
   await write(token, "LaunchToken", "approve", [curve, tokens], {
     account: trader,
