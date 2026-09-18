@@ -1,76 +1,48 @@
 # Voidfun
 
-Launchpad experimental na Deed 0001 da Robinhood Testnet. **Reinicio 90/10: implementacao preparada, aguardando publicacao manual na nova Deed.** Não usar fundos reais. O protocolo VoidChains não foi alterado por este projeto.
+Launchpad de teste para Robinhood Testnet, Ethereum Sepolia, Base Sepolia, Ink Sepolia e Arc Testnet. As implementacoes ficam prontas para publicacao manual na Deed 0001. Nenhum gateway e publicado automaticamente.
 
-## Como funciona
+## Selecionar uma rede
 
-`Runtime.execute` cobra o pedágio da Deed e encaminha a chamada ao gateway Voidfun. A implementação valida tanto o Runtime quanto o aplicativo em execução e obtém dele o usuário autenticado. Cada lançamento cria um token ERC-20 e uma curva independentes. O ETH de negociação fica na curva, não no gateway. Criador e tesouraria podem retirar somente suas taxas acumuladas, inclusive depois do encerramento.
+O seletor Network define os contratos, RPC, explorador, lista de tokens, grafico e moeda usados pela interface. Com uma carteira conectada, a selecao solicita wallet_switchEthereumChain e, se necessario, wallet_addEthereumChain. A troca so e aplicada se a carteira confirmar a rede. Recusar mantem a selecao anterior. Cada transacao confere novamente rede e conta. WalletConnect anuncia as cinco redes; a carteira precisa suportar a rede escolhida.
 
-A curva começa com oferta S e reserva virtual V em ETH: preço inicial = V / S; FDV inicial = V. V corresponde a US$ 3.000 no momento de criação. A reserva real começa em zero. Compras aumentam a reserva real e reduzem a quantidade de tokens na curva; vendas fazem o inverso. A reserva virtual não pode ser sacada.
+Tokens e reservas existem somente na rede em que foram criados. Trocar de rede nao faz bridge nem duplica tokens. A Arc usa USDC nativo com 18 casas na interface EVM; as outras redes usam ETH. Nao ha conversao de ativos entre redes.
 
-No candidato atual, 80% da oferta é vendido antes do encerramento. Sem mudança ETH/USD, a referência de FDV chega a cerca de US$ 75.000. Isso não significa US$ 75.000 de liquidez real. A última compra devolve o excesso de ETH. Ao completar, compra e venda param permanentemente, e reserva e tokens remanescentes ficam no contrato. **Não existe migração, resgate ou retirada administrativa da reserva nesta versão de teste.**
+## Publicacao manual na Deed
 
-Leia [DECISOES-ROBINHOOD.md](DECISOES-ROBINHOOD.md) para a configuração desta versão de teste.
+1. Escolha a rede na Voidfun e copie a Implementation exibida. Os enderecos verificados estao em `src/networks.json`, o manifesto ativo unico.
+2. No protocolo, abra My Deeds e ative a Deed 0001 na rede de destino, se necessario. Sepolia segue a propriedade do NFT diretamente.
+3. Em Build, selecione a mesma rede, Deed 1, a Implementation correspondente e Initialization bytes `0x`.
+4. Assine Publish application na sua carteira e aguarde confirmacao. Somente esta acao sua registra o aplicativo na Deed.
+5. Guarde o hash da publicacao. `node scripts/attach-gateway.mjs --chain=ID --tx=HASH --publisher=CARTEIRA` verifica o recibo, registro, Deed, implementation e publisher antes de atualizar o manifesto local. O script nao assina nem envia transacoes. Depois publique o frontend atualizado.
+6. Crie o token e teste compra/venda. Cada rede fica liberada individualmente depois que seu gateway for registrado no manifesto.
 
-## Desenvolvimento
+A interface mostra as taxas lidas da implementation mesmo antes da publicacao. Criacao e negociacao permanecem indisponiveis enquanto nao houver gateway nessa rede. As transacoes publicas de criacao/compra/venda serao feitas manualmente pelo usuario; os testes de integracao automatizados usam somente Anvil local.
 
-Requer Node 22+ e npm. No Windows o Anvil é instalado como dependência opcional; em outros sistemas instale `anvil` no PATH.
+## Economia
 
-```sh
-npm ci
-npm run compile
-npm test
-npm run build
-npm run dev
-```
+Criacao zero. Taxa de negociacao de 1%, dividida em 30% para a tesouraria Voidfun e 70% para o criador. Tesouraria Voidfun: `0xA7a12A1D7000e40Ecc18a62Af456791b89cB2770`. O pedagio da Deed e separado: 90% para o dono e 10% para o tesouro do protocolo. Gas tambem e separado.
 
-Com o servidor local aberto em 3050 e Chrome instalado, `node scripts/test-ui.mjs` valida layout, ausência de erros JavaScript e bloqueio de transações antes do deploy. `node scripts/check-readiness.mjs` consulta somente dados públicos da rede.
+A curva usa reserva virtual equivalente a USD 3000 na moeda nativa da rede, obtida do NativePrice. A reserva real comeca em zero. Cada lancamento cria token ERC-20 e curva independentes. Reservas de negociacao ficam na curva, nunca na implementation.
 
-`verification/local-tests.json` registra testes em Anvil: criação pelo gateway dentro do limite de gas, identidade, inicialização única, compra, venda, separação de taxas, conservação dos saldos, isolamento, encerramento e saque de taxas. Não é auditoria independente nem prova de invulnerabilidade. A evidencia antiga esta em archive/pre-90-10. O ambiente novo nao lista tokens antigos e nao permite negociacao antes da publicacao manual.
+Ao vender 80% da oferta, a curva encerra permanentemente compras e vendas; o excesso da ultima compra e devolvido. Nao ha migracao para Uniswap, resgate ou retirada administrativa da reserva nesta versao de teste. Criador e tesouraria podem sacar apenas suas taxas acumuladas, inclusive apos unregister. Nao usar fundos reais.
 
-## Publicação na Deed
+## Desenvolvimento e verificacao
 
-1. Confirmar as taxas candidatas e a tesouraria Voidfun. Não confundir tesouraria com dono da Deed ou criador do token.
-2. Validar rede 46630, bytecodes Runtime/NativePrice, estado espelhado da Deed 0001 e cotação disponível.
-3. Implantar LaunchToken e LaunchCurve como implementações, depois Voidfun com os endereços e taxas confirmados.
-4. Chamar `Runtime.publish(1, implementation, 0x, salt)` e extrair o gateway do evento confirmado. O publicador controla `unregister`; o dono da Deed continua controlando o pedágio.
-5. Esperar um bloco EVM posterior à publicação. Atualizar `src/deployment.json` somente após confirmar os recibos e bytecodes.
-6. Testar um lançamento, pequena compra, aprovação exata e venda na rede pública de teste. Publicar as fontes verificáveis e os recibos. O encerramento completo foi testado localmente, sem gastar vários ETH de faucet.
-7. Gerar e hospedar o site. A interface usa o gateway publicado e mostra as taxas lidas do contrato; enquanto não existir gateway, transações ficam desabilitadas.
+Node 22+; npm ci, npm run compile, npm test, node scripts/test-networks.mjs, npm run build. Anvil e instalado como dependencia opcional no Windows; em outros sistemas instale no PATH.
 
-Nenhum contrato do protocolo precisa ser reimplantado para publicar esta aplicação. A Deed continua sendo o NFT existente; os tokens criados são novos ERC-20 da aplicação. Interface atual lista os 30 lançamentos mais recentes, sem indexador histórico.
+TEST_CHAIN_ID permite executar a integracao local com o chain ID de cada testnet. Arc usa cotacao de USD 1 por unidade nativa no teste; as demais USD 2000. Evidencias em `verification/local-tests-ID.json`. Estes testes nao sao auditoria independente nem substituem aceitacao em carteira real.
 
-## Proveniência
+`node scripts/verify-deployment.mjs ID` compara bytecode executavel, immutables e taxas contra `deployments/ID.json`. A comparacao de bytecode remove metadados Solidity e verifica immutables separadamente. Robinhood conserva sua implementation existente; as outras redes usam o construtor ampliado para as testnets permitidas. `node scripts/check-readiness.mjs ID` consulta disponibilidade sem escrever.
 
-`contracts/` contém esta implementação inspirada na matemática de reservas virtuais descrita pela PONs, sem importar seus hooks. OpenZeppelin 5.6.1 é instalado por npm, com suas próprias licenças.
+## Implantacao das implementacoes
 
-`tests/protocol/*.sol` são fixtures de integração copiadas de `0xddneto/VoidChainsApp`, commit `687a74738a98bb2a5fdd323062b25cd2c4950333`, mantendo seus cabeçalhos SPDX. Só são implantadas no Anvil pelos testes; não substituem contratos públicos. Fontes de pesquisa: [PONs](https://github.com/ponsdotdev/ponsfamily), [Pump public docs](https://github.com/pump-fun/pump-public-docs).
+`scripts/deploy.mjs` exige --chain, --trade-bps, --protocol-share-bps, --creation-fee-wei e --treasury explicitos. A chave VOIDFUN_DEPLOYER_KEY entra somente no ambiente do processo. Manter o lock de operador do protocolo ao usar a carteira compartilhada. O script implanta apenas LaunchToken, LaunchCurve e Voidfun; nao contem chamada Runtime.publish. Persiste recibos em deployments/ID.json e transacoes assinadas em .tools/, fora do Git. Retentativas reutilizam os recibos e transacoes da mesma rede.
 
-### Script de implantação
+## Carteiras
 
-Após confirmar os valores, `scripts/deploy.mjs` exige `--trade-bps`, `--protocol-share-bps`, `--creation-fee-wei` e `--treasury` explícitos. `VOIDFUN_DEPLOYER_KEY` deve ser injetada somente no ambiente do processo. Se for usada a carteira compartilhada do protocolo, manter seu lock de operador durante toda a execução.
+Extensoes via EIP-6963, fallback EIP-1193 e WalletConnect. VITE_WALLETCONNECT_PROJECT_ID deve pertencer ao projeto Reown Voidfun e permitir a origem publicada. Nenhuma chave privada entra no frontend. A aprovacao real em carteira movel continua sendo teste manual.
 
-O script limita a rede a 46630, persiste a transação assinada localmente antes de transmitir, confirma recibos e registra `deployments/46630.json`. Retentativas reutilizam a mesma transação. Arquivos assinados ficam em `.tools/`, ignorado pelo Git. Não executar com taxas não confirmadas. A primeira implantação está registrada em `deployments/46630.json`. A validação on-chain está em `verification/deployed-code.json` e `verification/public-smoke.json`.
+## Proveniencia
 
-## Conexão de carteiras
-
-A interface descobre extensões compatíveis com EIP-6963 e mantém fallback EIP-1193 (`window.ethereum` / `providers`). A escolha do usuário é mantida ao trocar de rede e assinar; não há restrição a Rabby, Brave ou marcas específicas. Rejeição, pedido pendente, ausência de extensão e desconexão têm estados visíveis. Isso não implica suporte a carteiras que não implementam Ethereum/EVM ou à Robinhood Testnet em todas elas.
-
-WalletConnect usa `@walletconnect/ethereum-provider`, com QR code e link para copiar no celular. Para ativar o transporte real, criar um projeto próprio em https://dashboard.reown.com, permitir https://voidfun-coral.vercel.app e configurar `VITE_WALLETCONNECT_PROJECT_ID` no ambiente de build da Vercel. É um identificador público, não uma chave privada. Reimplantar o site após configurar. Sem ele, a interface informa que conexões móveis ainda não estão disponíveis; extensões continuam funcionando. Não usar IDs de projetos de terceiros.
-
-`node scripts/test-wallets-ui.mjs` (servidor local em 3050 e Chrome instalado) verifica cinco cenários de conexão usando provedores controlados. O caso WalletConnect verifica a interface com relay simulado, não substitui aprovação por uma carteira real via serviço WalletConnect. O projeto Reown Voidfun foi configurado em 2026-09-14 no plano Starter, com a origem https://voidfun-coral.vercel.app permitida e o Project ID público no ambiente Production da Vercel. A aprovação de uma conexão por uma carteira móvel real continua sendo uma etapa de teste manual.
-
-Referências: https://eips.ethereum.org/EIPS/eip-6963 e https://docs.reown.com/advanced/providers/ethereum.
-
-## Reinicio 90/10
-
-O manifesto src/deployment.json aponta para a nova colecao e Runtime. A implementacao e seus contratos auxiliares sao novos; o gateway fica vazio ate a publicacao manual. O site nao lista tokens da versao anterior. Manifestos, testes publicos antigos e imagens anteriores estao em archive/pre-90-10.
-
-O pedagio pertence 90% ao dono da Deed e 10% ao tesouro VoidChains. A taxa da aplicacao permanece 1%, dividida em 30% Voidfun e 70% criador; criacao zero. Nenhuma destas taxas substitui gas.
-
-1. Mintar a nova Deed 0001 na Sepolia usando sua carteira.
-2. Em My Deeds, ativar a propriedade na Robinhood Testnet.
-3. Em Build, selecionar Robinhood, Deed 1 e a implementation registrada em src/deployment.json; initialization bytes = 0x.
-4. Assinar Publish application na propria carteira. Aguardar confirmacao e um bloco posterior.
-5. Registrar o gateway confirmado em src/deployment.json e publicar o frontend. O gateway deve pertencer ao novo Runtime e apontar para a implementacao esperada.
-6. Fazer o primeiro lancamento e compra/venda manual. Os dez testes locais ja cobrem o fluxo 90/10, mas nao substituem essa aceitacao publica.
+Matematica de reservas virtuais inspirada na PONs, sem importar seus hooks: https://github.com/ponsdotdev/ponsfamily e https://github.com/pump-fun/pump-public-docs. OpenZeppelin mantem suas licencas. tests/protocol contem fixtures locais; nao substitui contratos publicos. Estudos e decisoes historicos permanecem nos documentos originais e archive.

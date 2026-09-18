@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import { createPublicClient, http, parseEther, formatEther } from "viem";
-const d = JSON.parse(fs.readFileSync("src/deployment.json"));
+const d = JSON.parse(fs.readFileSync("src/networks.json")).find(
+  (n) => n.chainId === Number(process.argv[2] ?? 46630),
+);
+if (!d) throw Error("Unsupported network");
 const c = createPublicClient({
   transport: http(d.rpc, { timeout: 15000, retryCount: 0 }),
 });
@@ -24,7 +27,7 @@ try {
   result.quoteError = e.shortMessage ?? e.message;
 }
 try {
-  result.initialFdvEth = formatEther(
+  result.initialFdvNative = formatEther(
     await c.readContract({
       address: d.price,
       abi: abi.NativePrice,
@@ -35,12 +38,12 @@ try {
 } catch (e) {
   result.priceError = e.shortMessage ?? e.message;
 }
-result.operatorBalanceEth = formatEther(
+result.operatorBalanceNative = formatEther(
   await c.getBalance({ address: "0x224385Bd4dBe4c5cb0ab469fe06ACdA734541A94" }),
 );
 try {
   const r = await fetch(
-    "https://www.voidchains.app/api/activation?id=1&chain=46630",
+    `https://www.voidchains.app/api/activation?id=1&chain=${d.chainId}`,
   );
   result.activationStatus = r.status;
   result.activation = await r.json();
@@ -48,7 +51,7 @@ try {
   result.activationError = e.message;
 }
 fs.writeFileSync(
-  "verification/readiness.json",
+  `verification/readiness-${d.chainId}.json`,
   JSON.stringify(result, null, 2),
 );
 console.log(JSON.stringify(result, null, 2));

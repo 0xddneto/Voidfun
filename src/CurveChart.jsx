@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { formatEther } from "viem";
-import { client, abis, deployment } from "./web3";
+
 const cache = new Map();
 const priceText = (value) =>
   "$" + Number(value).toLocaleString("en-US", { maximumSignificantDigits: 5 });
-export default function CurveChart({ curve, ethUsd }) {
+export default function CurveChart({ curve, ethUsd, context }) {
+  const { client, abis, deployment, nativeSymbol } = context;
+  const cacheKey = `${deployment.chainId}:${curve.address}`;
   const [mode, setMode] = useState("curve"),
     [history, setHistory] = useState([]),
     [error, setError] = useState(""),
@@ -14,7 +16,7 @@ export default function CurveChart({ curve, ethUsd }) {
     async function load() {
       try {
         const head = await client.getBlockNumber();
-        const saved = cache.get(curve.address) ?? {
+        const saved = cache.get(cacheKey) ?? {
           next: BigInt(deployment.deploymentBlock ?? 0),
           logs: [],
         };
@@ -54,21 +56,19 @@ export default function CurveChart({ curve, ethUsd }) {
             );
         }
         if (live) {
-          cache.set(curve.address, { next: head + 1n, logs: unique });
+          cache.set(cacheKey, { next: head + 1n, logs: unique });
           setHistory(
-            unique
-              .slice(-60)
-              .map((log) => ({
-                ...log,
-                time: blocks.get(String(log.blockNumber)),
-                price:
-                  Number(
-                    formatEther(
-                      ((curve.phantom + log.args.reserve) * 10n ** 18n) /
-                        log.args.tokenReserve,
-                    ),
-                  ) * ethUsd,
-              })),
+            unique.slice(-60).map((log) => ({
+              ...log,
+              time: blocks.get(String(log.blockNumber)),
+              price:
+                Number(
+                  formatEther(
+                    ((curve.phantom + log.args.reserve) * 10n ** 18n) /
+                      log.args.tokenReserve,
+                  ),
+                ) * ethUsd,
+            })),
           );
           setError("");
         }
@@ -280,7 +280,7 @@ export default function CurveChart({ curve, ethUsd }) {
             <thead>
               <tr>
                 <th>Side</th>
-                <th>ETH</th>
+                <th>{nativeSymbol}</th>
                 <th>Trader</th>
                 <th>Transaction</th>
               </tr>

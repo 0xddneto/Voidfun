@@ -2,26 +2,30 @@ import CurveChart from "./CurveChart";
 import { decodeEventLog } from "viem";
 import WalletConnector from "./WalletConnector";
 import { watchAccount } from "./wallets";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import { formatEther, parseEther } from "viem";
-import {
-  deployment,
-  read,
-  query,
-  connect,
-  execute,
-  direct,
-  confirmed,
-  abis,
-} from "./web3";
+import { networks, createNetworkContext } from "./web3";
 import "./style.css";
 const num = (x, d = 4) =>
   Number(x).toLocaleString("en-US", { maximumFractionDigits: d });
 const eth = (x) => num(formatEther(x ?? 0n), 7);
 const dollars = (x) => "$" + num(x, 2);
 const short = (x) => (x ? x.slice(0, 6) + "…" + x.slice(-4) : "");
-function App() {
+function App({ network, onNetworkChange }) {
+  const context = useMemo(() => createNetworkContext(network), [network]);
+  const {
+    deployment,
+    nativeSymbol,
+    read,
+    query,
+    connect,
+    execute,
+    direct,
+    confirmed,
+    abis,
+    wallet,
+  } = context;
   const [account, setAccount] = useState(),
     [view, setView] = useState("explore"),
     [list, setList] = useState([]),
@@ -43,8 +47,30 @@ function App() {
     [toll, setToll] = useState(0n),
     [balance, setBalance] = useState(0n),
     [earned, setEarned] = useState(0n);
+  async function changeNetwork(id) {
+    const target = networks.find((n) => n.chainId === Number(id));
+    if (!target || busy) return;
+    setBusy(true);
+    try {
+      if (account) await wallet(account, target);
+      const url = new URL(window.location.href);
+      url.searchParams.set("chain", String(target.chainId));
+      url.hash = "";
+      window.history.replaceState(null, "", url.href);
+      onNetworkChange(target);
+    } catch (e) {
+      setStatus({ kind: "error", text: e.shortMessage ?? e.message });
+      setBusy(false);
+    }
+  }
   async function refresh() {
     try {
+      if (!deployment.implementation) {
+        setTerms();
+        setList([]);
+        setError("");
+        return;
+      }
       const fee = await read(
         deployment.implementation,
         "Voidfun",
@@ -357,7 +383,21 @@ function App() {
           </button>
         </nav>
         <div className="wallet">
-          <span className="network">● RH TESTNET</span>
+          <label className="network">
+            Network{" "}
+            <select
+              aria-label="Execution network"
+              value={deployment.chainId}
+              disabled={busy}
+              onChange={(e) => changeNetwork(e.target.value)}
+            >
+              {networks.map((n) => (
+                <option key={n.chainId} value={n.chainId}>
+                  {n.chainName}
+                </option>
+              ))}
+            </select>
+          </label>
           <WalletConnector
             account={account}
             disabled={busy}
@@ -384,14 +424,19 @@ function App() {
         )}
         {!deployment.gateway && (
           <div className="notice">
-            Fresh testnet release. Mint Deed 0001 and activate it on Robinhood, then publish Voidfun through VoidChains Build. Token creation opens after publication. Implementation: {deployment.implementation || "Preparing"}.
+            Publish Voidfun manually on {deployment.chainName} through the
+            protocol Build page. Token creation opens on this network after
+            publication. Implementation:{" "}
+            {deployment.implementation || "Preparing"}.
           </div>
         )}
         {view === "explore" && !selected && (
           <>
             <section className="hero">
               <div>
-                <div className="eyebrow">DEED 0001 / ROBINHOOD</div>
+                <div className="eyebrow">
+                  DEED 0001 / {deployment.chainName.toUpperCase()}
+                </div>
                 <h1>
                   Small beginnings.
                   <br />
@@ -400,7 +445,7 @@ function App() {
                 <p>
                   Launch a token. Let the curve do the pricing.
                   <br />
-                  An open start on Robinhood Chain.
+                  An open start on {deployment.chainName}.
                 </p>
                 <button className="primary" onClick={() => setView("create")}>
                   Create your token <span>↗</span>
@@ -454,7 +499,9 @@ function App() {
                       </div>
                       <div>
                         <small>Real reserve</small>
-                        <strong>{eth(r.reserve)} ETH</strong>
+                        <strong>
+                          {eth(r.reserve)} {nativeSymbol}
+                        </strong>
                       </div>
                     </div>
                     <div className="progress">
@@ -544,7 +591,9 @@ function App() {
                 </div>
                 <div>
                   <dt>Creation fee</dt>
-                  <dd>{terms ? eth(terms.fee) + " ETH" : "Loading…"}</dd>
+                  <dd>
+                    {terms ? eth(terms.fee) + " " + nativeSymbol : "Loading…"}
+                  </dd>
                 </div>
                 <div>
                   <dt>Trading fee</dt>
@@ -589,7 +638,9 @@ function App() {
             </button>
             <section className="trade-layout">
               <div>
-                <div className="eyebrow">DEED 0001 / ROBINHOOD TESTNET</div>
+                <div className="eyebrow">
+                  DEED 0001 / {deployment.chainName.toUpperCase()}
+                </div>
                 <h1>{selected.name}</h1>
                 <p className="ticker">${selected.symbol}</p>
                 <a
@@ -599,7 +650,11 @@ function App() {
                 >
                   Token {short(selected.token)} ↗
                 </a>
-                <CurveChart curve={selected} ethUsd={ethUsd} />
+                <CurveChart
+                  curve={selected}
+                  ethUsd={ethUsd}
+                  context={context}
+                />
                 <div className="metrics">
                   <div>
                     <small>Fully diluted valuation</small>
@@ -607,7 +662,9 @@ function App() {
                   </div>
                   <div>
                     <small>Real reserve</small>
-                    <strong>{eth(selected.reserve)} ETH</strong>
+                    <strong>
+                      {eth(selected.reserve)} {nativeSymbol}
+                    </strong>
                   </div>
                   <div>
                     <small>Curve progress</small>
@@ -618,8 +675,8 @@ function App() {
                   <i style={{ width: selected.progress + "%" }} />
                 </div>
                 <p className="hint">
-                  Valuation uses the current ETH/USD quote. It does not
-                  represent available liquidity. At 80% of supply sold, this
+                  Valuation uses the current {nativeSymbol}/USD quote. It does
+                  not represent available liquidity. At 80% of supply sold, this
                   test closes trading.
                 </p>
                 <div className="notice">
@@ -636,7 +693,9 @@ function App() {
                   </div>
                   <div>
                     <dt>Your claimable fees</dt>
-                    <dd>{eth(earned)} ETH</dd>
+                    <dd>
+                      {eth(earned)} {nativeSymbol}
+                    </dd>
                   </div>
                 </dl>
                 {earned > 0n && (
@@ -677,7 +736,9 @@ function App() {
                   ))}
                 </div>
                 <label>
-                  {side === "buy" ? "Spend ETH" : "Sell " + selected.symbol}
+                  {side === "buy"
+                    ? "Spend " + nativeSymbol
+                    : "Sell " + selected.symbol}
                   <input
                     inputMode="decimal"
                     placeholder="0.00"
@@ -693,19 +754,23 @@ function App() {
                       {quote && !quote.error
                         ? eth(quote.out) +
                           " " +
-                          (side === "buy" ? selected.symbol : "ETH")
+                          (side === "buy" ? selected.symbol : nativeSymbol)
                         : "—"}
                     </dd>
                   </div>
                   <div>
                     <dt>App trading fee ({Number(selected.feeBps) / 100}%)</dt>
                     <dd>
-                      {quote && !quote.error ? eth(quote.fee) + " ETH" : "—"}
+                      {quote && !quote.error
+                        ? eth(quote.fee) + " " + nativeSymbol
+                        : "—"}
                     </dd>
                   </div>
                   <div>
                     <dt>Deed toll · separate</dt>
-                    <dd>{eth(toll)} ETH</dd>
+                    <dd>
+                      {eth(toll)} {nativeSymbol}
+                    </dd>
                   </div>
                   <div>
                     <dt>Network gas</dt>
@@ -716,7 +781,7 @@ function App() {
                   Minimum received: 99% of the quoted output.{" "}
                   {side === "sell"
                     ? "A token approval may be required first; it is limited to this sale amount."
-                    : "If the final purchase exceeds the curve limit, the unused ETH is returned in the same transaction."}
+                    : "If the final purchase exceeds the curve limit, the unused native currency is returned in the same transaction."}
                 </p>
                 {quote?.error && <p className="error">{quote.error}</p>}
                 <button
@@ -784,4 +849,17 @@ function App() {
     </div>
   );
 }
-createRoot(document.getElementById("root")).render(<App />);
+function NetworkApp() {
+  const [network, setNetwork] = useState(
+    () =>
+      networks.find(
+        (n) =>
+          n.chainId ===
+          Number(new URLSearchParams(window.location.search).get("chain")),
+      ) ?? networks[0],
+  );
+  return (
+    <App key={network.chainId} network={network} onNetworkChange={setNetwork} />
+  );
+}
+createRoot(document.getElementById("root")).render(<NetworkApp />);

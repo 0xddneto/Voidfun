@@ -13,16 +13,19 @@ import {
   toHex,
 } from "viem";
 import { foundry } from "viem/chains";
+const testChainId=Number(process.env.TEST_CHAIN_ID??31337);
+const testChain={...foundry,id:testChainId};
+const usdPrice=testChainId===5042002?1n:2000n;
 const exe =
   process.platform === "win32"
     ? "node_modules/@foundry-rs/anvil-win32-amd64/bin/anvil.exe"
     : "anvil";
-const processLocal = spawn(exe, ["--port", "8567", "--silent"], {
+const processLocal = spawn(exe, ["--port", "8567", "--silent", "--chain-id", String(testChainId), "--balance", "1000000"], {
   stdio: "ignore",
   windowsHide: true,
 });
 const c = createPublicClient({
-  chain: foundry,
+  chain: testChain,
   transport: http("http://127.0.0.1:8567", { retryCount: 0 }),
 });
 const A = (n) => JSON.parse(fs.readFileSync("artifacts/" + n + ".json"));
@@ -70,13 +73,13 @@ try {
   });
   w = createWalletClient({
     account: owner,
-    chain: foundry,
+    chain: testChain,
     transport: http("http://127.0.0.1:8567"),
   });
   const deed = await deploy("Deed", [treasury, ""]);
   await write(deed, "Deed", "mint", [], { value: parseEther(".001") });
   const feed = await deploy("TestnetPriceFeed", [owner]);
-  await write(feed, "TestnetPriceFeed", "publish", [2000n * 10n ** 8n]);
+  await write(feed, "TestnetPriceFeed", "publish", [usdPrice * 10n ** 8n]);
   const price = await deploy("NativePrice", [feed, 7200n]);
   const runtime = await deploy("Runtime", [deed, price, treasury]);
   const tokenLogic = await deploy("LaunchToken"),
@@ -153,7 +156,7 @@ try {
   );
   assert.equal(
     await read(curve, "LaunchCurve", "phantomQuote"),
-    parseEther("1.5"),
+    parseEther("3000")/usdPrice,
   );
   ok("gateway creates token/curve under 1.9M app gas with USD 3000 reference");
   assert.equal(await read(curve, "LaunchCurve", "realReserve"), 0n);
@@ -281,7 +284,7 @@ try {
   assert.equal(await read(curve, "LaunchCurve", "claimable", [treasury]), 0n);
   ok("earned-fee claims remain available after unregister");
   fs.writeFileSync(
-    "verification/local-tests.json",
+    `verification/local-tests-${testChainId}.json`,
     JSON.stringify(
       {
         at: new Date().toISOString(),

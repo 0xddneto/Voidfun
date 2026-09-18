@@ -491,9 +491,7 @@ a:focus-visible {
     width: 100%;
     justify-content: center;
   }
-  .network {
-    display: none;
-  }
+  .network { display: flex; flex-wrap: wrap; }
   main {
     padding: 20px 20px 50px;
   }
@@ -742,3 +740,5 @@ a:focus-visible {
     flex-wrap: wrap;
   }
 }
+
+.network select { background: #171a20; color: #fff; border: 1px solid #42464e; border-radius: 8px; padding: 9px; max-width: 180px; }

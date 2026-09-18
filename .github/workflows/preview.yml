@@ -19,6 +19,13 @@ jobs:
       - run: npm ci
       - run: npm run compile
       - run: npm test
+      - run: node scripts/test-networks.mjs
+      - run: |
+          foreach ($id in @(46630,11155111,84532,763373,5042002)) {
+            $env:TEST_CHAIN_ID="$id"
+            node scripts/test.mjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
       - run: npm run build
   build:
     needs: validate

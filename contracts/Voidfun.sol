@@ -11,7 +11,7 @@ interface IRuntime {
 interface IPrice {
     function quote(uint256 usd18) external view returns (uint256);
 }
-/// @notice Delegatecall implementation for a Deed gateway; RH testnet only.
+/// @notice Delegatecall implementation for a Deed gateway; supported testnets only.
 contract Voidfun {
     address public immutable RUNTIME;
     address public immutable PRICE;
@@ -45,7 +45,7 @@ contract Voidfun {
         uint256 creationFee
     ) {
         require(
-            block.chainid == 31337 || block.chainid == 46630,
+            block.chainid == 31337 || block.chainid == 46630 || block.chainid == 11155111 || block.chainid == 84532 || block.chainid == 763373 || block.chainid == 5042002,
             "TESTNET_ONLY"
         );
         require(
