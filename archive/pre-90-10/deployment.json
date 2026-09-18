@@ -3,12 +3,12 @@
   "chainName": "Robinhood Testnet",
   "rpc": "https://robinhood-sepolia-rpc.publicnode.com",
   "explorer": "https://explorer.testnet.chain.robinhood.com",
-  "collection": "0x6bcaee8783b41adadb0a9b1f3a12b4c516f60cba",
+  "collection": "0x4dfe1411249802b06d7c4fc7953e3240418b241c",
   "deedId": "1",
-  "runtime": "0xf59a0f7a9f0d64379af83354c64147379547e3af",
-  "price": "0x981b643bd4d26627aa1cc5a6863d2e24c95c0ebe",
-  "gateway": null,
-  "implementation": "0xd5d77c5bd692b42b2e99fb3708aab74084e5cdbd",
-  "status": "awaiting-manual-publication",
-  "deploymentBlock": "0"
+  "runtime": "0x57987b1291b24bef9e655c6c03ac21f02b1fafad",
+  "price": "0x3369ce6a1cee163b79a07d54eafcfbc0e7cb39ca",
+  "gateway": "0x7c8EdE6CE0CDdc4d2Ac2094269EEE3448Ae0325F",
+  "implementation": "0x16ba0e49c61bccb59e2a36c623aa2fd123eb2b81",
+  "status": "live-testnet",
+  "deploymentBlock": "119580707"
 }
