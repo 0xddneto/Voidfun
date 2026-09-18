@@ -3,7 +3,8 @@ import { isAddress } from "viem";
 const discovered = new Map(),
   listeners = new Set(),
   accountListeners = new Set();
-let active,
+let currentAccount,
+  active,
   detach = () => {};
 const notify = () => listeners.forEach((fn) => fn());
 window.addEventListener("eip6963:announceProvider", ({ detail }) => {
@@ -50,10 +51,12 @@ export function watchWallets(fn) {
 }
 export function watchAccount(fn) {
   accountListeners.add(fn);
+  fn(currentAccount);
   return () => accountListeners.delete(fn);
 }
 function updateAccount(value) {
   const account = isAddress(value ?? "") ? value : undefined;
+  currentAccount = account;
   accountListeners.forEach((fn) => fn(account));
 }
 export function selectedProvider() {

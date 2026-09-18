@@ -1,3 +1,12 @@
+process.on("uncaughtException", (e) => {
+  console.error(
+    "DEPLOY_ERROR:",
+    (e.shortMessage ?? e.message)
+      .replace(/0x[0-9a-fA-F]{64,}/g, "[redacted]")
+      .slice(0, 400),
+  );
+  process.exit(1);
+});
 // Testnet-only deployment. Fees must be provided explicitly, never inferred from local tests.
 import fs from "node:fs";
 import {
@@ -6,17 +15,16 @@ import {
   http,
   defineChain,
   encodeDeployData,
-  encodeFunctionData,
-  decodeEventLog,
   keccak256,
-  toHex,
   isAddress,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-const config = JSON.parse(fs.readFileSync("src/deployment.json"));
+const configs = JSON.parse(fs.readFileSync("src/networks.json"));
 const values = Object.fromEntries(
   process.argv.slice(2).map((arg) => arg.replace(/^--/, "").split("=")),
 );
+const config = configs.find((n) => n.chainId === Number(values.chain));
+if (!config) throw Error("Provide a supported --chain=id");
 for (const key of [
   "trade-bps",
   "protocol-share-bps",
@@ -43,28 +51,26 @@ if (!process.env.VOIDFUN_DEPLOYER_KEY)
   );
 const account = privateKeyToAccount(process.env.VOIDFUN_DEPLOYER_KEY);
 const chain = defineChain({
-  id: 46630,
-  name: "Robinhood Testnet",
-  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  id: config.chainId,
+  name: config.chainName,
+  nativeCurrency: {
+    name: config.nativeSymbol,
+    symbol: config.nativeSymbol,
+    decimals: 18,
+  },
   rpcUrls: { default: { http: [config.rpc] } },
 });
 const client = createPublicClient({ chain, transport: http(config.rpc) }),
   wallet = createWalletClient({ account, chain, transport: http(config.rpc) });
-if ((await client.getChainId()) !== 46630) throw Error("Wrong chain");
+if ((await client.getChainId()) !== config.chainId) throw Error("Wrong chain");
 const artifact = (name) =>
   JSON.parse(fs.readFileSync("artifacts/" + name + ".json"));
 for (const address of [config.runtime, config.price])
   if (((await client.getCode({ address })) ?? "0x") === "0x")
     throw Error("Missing protocol bytecode");
-if (!process.argv.includes("--implementation-only")) await client.readContract({
-  address: config.runtime,
-  abi: artifact("Runtime").abi,
-  functionName: "quote",
-  args: [1n],
-});
 fs.mkdirSync("deployments", { recursive: true });
 fs.mkdirSync(".tools", { recursive: true });
-const path = "deployments/46630.json";
+const path = `deployments/${config.chainId}.json`;
 const terms = {
   fee: String(fee),
   share: String(share),
@@ -91,7 +97,10 @@ async function send(name, request) {
     prepared.gas = (gas * 120n) / 100n;
     const serialized = await wallet.signTransaction(prepared);
     const hash = keccak256(serialized);
-    fs.writeFileSync(".tools/" + name + ".signed-tx", serialized);
+    fs.writeFileSync(
+      ".tools/" + config.chainId + "-" + name + ".signed-tx",
+      serialized,
+    );
     record = state.transactions[name] = { hash };
     save();
   }
@@ -99,7 +108,10 @@ async function send(name, request) {
     .getTransactionReceipt({ hash: record.hash })
     .catch(() => null);
   if (!receipt) {
-    const serialized = fs.readFileSync(".tools/" + name + ".signed-tx", "utf8");
+    const serialized = fs.readFileSync(
+      ".tools/" + config.chainId + "-" + name + ".signed-tx",
+      "utf8",
+    );
     try {
       await client.sendRawTransaction({ serializedTransaction: serialized });
     } catch (e) {
@@ -116,8 +128,20 @@ async function send(name, request) {
   }
   if (receipt.status !== "success")
     throw Error(name + " reverted: " + record.hash);
-  const block = await client.getBlock({ blockNumber: receipt.blockNumber });
-  if (block.hash !== receipt.blockHash) throw Error("Noncanonical receipt");
+  let canonical = false;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    receipt = await client.getTransactionReceipt({ hash: record.hash });
+    const block = await client.getBlock({ blockNumber: receipt.blockNumber });
+    const head = await client.getBlockNumber({ cacheTime: 0 });
+    if (block.hash === receipt.blockHash && head >= receipt.blockNumber + 1n) {
+      canonical = true;
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  if (!canonical)
+    throw Error("Noncanonical receipt; retry the persisted transaction later");
+  if (receipt.status !== "success") throw Error(name + " reverted");
   record.block = String(receipt.blockNumber);
   record.address = receipt.contractAddress;
   record.confirmed = true;
@@ -154,52 +178,15 @@ const logic = await deploy("Voidfun", [
   share,
   creation,
 ]);
-if (process.argv.includes("--implementation-only")) {
-  state.implementation = logic; save();
-  fs.writeFileSync("src/deployment.json", JSON.stringify({...config,gateway:null,implementation:logic,status:"awaiting-manual-publication",deploymentBlock:"0"},null,2));
-  console.log("Implementation ready for manual publication:",logic);
-  process.exit(0);
-}
-const receipt = await send("publish", {
-  to: config.runtime,
-  data: encodeFunctionData({
-    abi: artifact("Runtime").abi,
-    functionName: "publish",
-    args: [1n, logic, "0x", keccak256(toHex("voidfun-rh-testnet-v1"))],
-  }),
-});
-const event = receipt.logs
-  .filter((l) => l.address.toLowerCase() === config.runtime.toLowerCase())
-  .map((log) => {
-    try {
-      return decodeEventLog({ abi: artifact("Runtime").abi, ...log });
-    } catch {
-      return null;
-    }
-  })
-  .find((e) => e?.eventName === "AppPublished");
-if (!event)
-  throw Error(
-    "Publication event not found. Inspect receipt before continuing.",
-  );
-state.gateway = event.args.app;
 state.implementation = logic;
 save();
-fs.writeFileSync(
-  "src/deployment.json",
-  JSON.stringify(
-    {
-      ...config,
-      gateway: state.gateway,
-      implementation: logic,
-      status: "deployed-awaiting-public-smoke-test",
-    },
-    null,
-    2,
-  ),
-);
+Object.assign(config, {
+  implementation: logic,
+  status: "awaiting-manual-publication",
+});
+fs.writeFileSync("src/networks.json", JSON.stringify(configs, null, 2) + "\n");
 console.log(
-  "Gateway",
-  state.gateway,
-  "Deed 0001. Confirm an EVM block after publication before execution.",
+  "Implementation ready for manual publication:",
+  config.chainName,
+  logic,
 );

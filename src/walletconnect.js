@@ -1,4 +1,4 @@
-import deployment from "./deployment.json";
+import networks from "./networks.json";
 export const walletConnectConfigured = Boolean(
   import.meta.env.VITE_WALLETCONNECT_PROJECT_ID?.trim(),
 );
@@ -12,12 +12,12 @@ export async function mobileProvider(onUri, signal) {
     throw new DOMException("Connection cancelled", "AbortError");
   const provider = await EthereumProvider.init({
     projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID.trim(),
-    optionalChains: [deployment.chainId],
+    optionalChains: networks.map((n) => n.chainId),
     showQrModal: false,
-    rpcMap: { [deployment.chainId]: deployment.rpc },
+    rpcMap: Object.fromEntries(networks.map((n) => [n.chainId, n.rpc])),
     metadata: {
       name: "Voidfun",
-      description: "Voidfun launchpad on Robinhood Testnet",
+      description: "Voidfun multi-network testnet launchpad",
       url: window.location.origin,
       icons: [window.location.origin + "/voidfun-icon.svg"],
     },

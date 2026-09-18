@@ -1,0 +1,32 @@
+{
+  "terms": {
+    "fee": "100",
+    "share": "3000",
+    "creation": "0",
+    "treasury": "0xa7a12a1d7000e40ecc18a62af456791b89cb2770",
+    "publisher": "0x224385bd4dbe4c5cb0ab469fe06acda734541a94",
+    "runtime": "0x1458d19b99c16c617fb506e1772b407f6a1e4ee4",
+    "price": "0x5c34384900e0b1f8338806e9f17010080bf13f21"
+  },
+  "transactions": {
+    "LaunchToken": {
+      "hash": "0x9d5c7ae7896a182c56ebac8addea8cfb0038cd0f884b7e5de1fba5f3cc13e042",
+      "block": "11731189",
+      "address": "0xd2368380f2c5145f2194116d60d6e689c8dbb0ad",
+      "confirmed": true
+    },
+    "LaunchCurve": {
+      "hash": "0x303f93f6fc2e2e6b0ad1ae6b6dad5a9ca38dda8b9efbd19268fce9c363ca8540",
+      "block": "11731192",
+      "address": "0xfd9d5cac535f46a1435b2c031bfb50f928fe51da",
+      "confirmed": true
+    },
+    "Voidfun": {
+      "hash": "0x50b4b62a96d09f8587477388a2f2c776b17677fa50e6c9fd4ff0030f1ebcceba",
+      "block": "11731195",
+      "address": "0x587ebd2c62014c3f1af9ec138d19950ef35f052a",
+      "confirmed": true
+    }
+  },
+  "implementation": "0x587ebd2c62014c3f1af9ec138d19950ef35f052a"
+}
