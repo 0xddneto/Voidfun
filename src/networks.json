@@ -35,6 +35,10 @@
     "chainId": 84532,
     "chainName": "Base Sepolia",
     "rpc": "https://sepolia.base.org",
+    "rpcFallbacks": [
+      "https://base-sepolia-rpc.publicnode.com",
+      "https://base-sepolia.gateway.tenderly.co"
+    ],
     "explorer": "https://sepolia.basescan.org",
     "nativeSymbol": "ETH",
     "collection": "0x6bcaee8783b41adadb0a9b1f3a12b4c516f60cba",

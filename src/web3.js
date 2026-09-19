@@ -5,6 +5,7 @@ import {
   createPublicClient,
   createWalletClient,
   defineChain,
+  fallback,
   http,
   custom,
   encodeFunctionData,
@@ -29,7 +30,16 @@ export function createNetworkContext(deployment) {
   });
   const client = createPublicClient({
     chain,
-    transport: http(deployment.rpc, { timeout: 15000, retryCount: 1 }),
+    transport: fallback(
+      [deployment.rpc, ...(deployment.rpcFallbacks ?? [])].map((url) =>
+        http(url, {
+          batch: { batchSize: 50, wait: 10 },
+          timeout: 15000,
+          retryCount: 1,
+        }),
+      ),
+      { retryCount: 1 },
+    ),
   });
 
   const read = (address, name, functionName, args = []) =>
