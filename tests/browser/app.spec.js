@@ -45,6 +45,16 @@ for (const [id, name, symbol] of networks)
 function assertNoErrors(errors) {
   expect(errors).toEqual([]);
 }
+test("development server exposes JSON API instead of falling through to HTML", async ({
+  request,
+}) => {
+  const response = await request.get("/api/market?chain=1");
+  expect(response.status()).toBe(400);
+  expect((await response.json()).error).toBe("Unsupported network.");
+  const history = await request.get("/api/history?chain=1");
+  expect(history.status()).toBe(400);
+  expect((await history.json()).error).toBe("Invalid history selection.");
+});
 test("network selection changes the page and URL before a wallet is connected", async ({
   page,
 }) => {

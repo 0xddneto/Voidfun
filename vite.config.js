@@ -1,4 +1,6 @@
 import { defineConfig } from "vite";
+import { pathToFileURL } from "node:url";
+import { resolve } from "node:path";
 export default defineConfig({
   plugins: [
     {
@@ -17,7 +19,10 @@ export default defineConfig({
           };
           response.send = (value) => response.end(value);
           try {
-            const { default: handler } = await import(`.${name}.js`);
+            const { default: handler } = await import(
+              pathToFileURL(resolve(server.config.root, name.slice(1) + ".js"))
+                .href
+            );
             await handler(request, response);
           } catch (error) {
             next(error);
