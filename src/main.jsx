@@ -2,7 +2,9 @@ import CurveChart from "./CurveChart";
 import { decodeEventLog } from "viem";
 import WalletConnector from "./WalletConnector";
 import { watchAccount } from "./wallets";
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import { marketSnapshot, invalidateMarket } from "./market-data";
+import { pendingTransaction } from "./transactions";
 import { createRoot } from "react-dom/client";
 import { formatEther, parseEther } from "viem";
 import { networks, createNetworkContext } from "./web3";
@@ -10,7 +12,7 @@ import "./style.css";
 const num = (x, d = 4) =>
   Number(x).toLocaleString("en-US", { maximumFractionDigits: d });
 const eth = (x) => num(formatEther(x ?? 0n), 7);
-const dollars = (x) => "$" + num(x, 2);
+const dollars = (x) => (Number.isFinite(x) ? "$" + num(x, 2) : "—");
 const short = (x) => (x ? x.slice(0, 6) + "…" + x.slice(-4) : "");
 function App({ network, onNetworkChange }) {
   const context = useMemo(() => createNetworkContext(network), [network]);
@@ -44,9 +46,16 @@ function App({ network, onNetworkChange }) {
     [side, setSide] = useState("buy"),
     [amount, setAmount] = useState(""),
     [quote, setQuote] = useState(),
-    [toll, setToll] = useState(0n),
+    [toll, setToll] = useState(null),
     [balance, setBalance] = useState(0n),
     [earned, setEarned] = useState(0n);
+  const [offset, setOffset] = useState(0),
+    [hasMore, setHasMore] = useState(false),
+    [snapshotAt, setSnapshotAt] = useState("");
+  const [registered, setRegistered] = useState(Boolean(deployment.gateway));
+  const refreshRunning = useRef(null),
+    alive = useRef(true),
+    generation = useRef(0);
   async function changeNetwork(id) {
     const target = networks.find((n) => n.chainId === Number(id));
     if (!target || busy) return;
@@ -64,134 +73,108 @@ function App({ network, onNetworkChange }) {
     }
   }
   async function refresh() {
-    try {
-      if (!deployment.implementation) {
-        setTerms();
-        setList([]);
-        setError("");
-        return;
-      }
-      const fee = await read(
-        deployment.implementation,
-        "Voidfun",
-        "CREATE_FEE",
-      );
-      const trade = await read(
-        deployment.implementation,
-        "Voidfun",
-        "TRADE_FEE_BPS",
-      );
-      const share = await read(
-        deployment.implementation,
-        "Voidfun",
-        "PROTOCOL_SHARE_BPS",
-      );
-      setTerms({ fee, trade, share });
-      if (!deployment.gateway) {
-        setList([]);
-        setError("");
-        return;
-      }
-      const oneDollar = await read(deployment.price, "NativePrice", "quote", [
-        parseEther("1"),
-      ]);
-      setEthUsd(1 / Number(formatEther(oneDollar)));
-      const count = await query("launchCount");
-      const addresses = await query("launches", [
-        count > 30n ? count - 30n : 0n,
-        30n,
-      ]);
-      const rows = [];
-      for (const address of addresses) {
-        const fields = await Promise.all(
-          [
-            "token",
-            "creator",
-            "realReserve",
-            "trackedTokens",
-            "reservedTokens",
-            "supply",
-            "phantomQuote",
-            "complete",
-            "feeBps",
-            "protocolShareBps",
-          ].map((fn) => read(address, "LaunchCurve", fn)),
+    const wanted = window.location.hash.startsWith("#token/")
+      ? window.location.hash.slice(7)
+      : undefined;
+    const key = `${offset}:${wanted ?? ""}`;
+    if (refreshRunning.current?.key === key) return refreshRunning.current.task;
+    const version = ++generation.current;
+    const task = (async () => {
+      try {
+        const data = await marketSnapshot(deployment, offset, wanted);
+        if (!alive.current || version !== generation.current) return;
+        setTerms(data.terms);
+        setRegistered(Boolean(data.published));
+        setList(data.rows);
+        setHasMore(data.hasMore);
+        setSnapshotAt(data.generatedAt);
+        setEthUsd(data.ethUsd ?? NaN);
+        setSelected(
+          (previous) =>
+            data.selected ??
+            data.rows.find(
+              (row) =>
+                row.address.toLowerCase() === previous?.address?.toLowerCase(),
+            ) ??
+            previous,
         );
-        const [
-          token,
-          creator,
-          reserve,
-          tracked,
-          reserved,
-          supply,
-          phantom,
-          complete,
-          feeBps,
-          share,
-        ] = fields;
-        const [n, s] = await Promise.all([
-          read(token, "LaunchToken", "name"),
-          read(token, "LaunchToken", "symbol"),
-        ]);
-        rows.push({
-          address,
-          token,
-          creator,
-          reserve,
-          tracked,
-          reserved,
-          supply,
-          phantom,
-          complete,
-          feeBps,
-          share,
-          name: n,
-          symbol: s,
-          fdv: Number(formatEther(((phantom + reserve) * supply) / tracked)),
-          progress:
-            Number(((supply - tracked) * 10000n) / (supply - reserved)) / 100,
-        });
+        setError(
+          data.stale
+            ? "Connection interrupted. Showing the last confirmed market snapshot."
+            : data.priceUnavailable
+              ? "USD reference is temporarily unavailable. Native currency amounts remain visible."
+              : "",
+        );
+      } catch (e) {
+        if (alive.current && version === generation.current)
+          setError(e.shortMessage ?? e.message);
+      } finally {
+        if (version === generation.current) {
+          refreshRunning.current = null;
+          if (alive.current) setLoading(false);
+        }
       }
-      setList(rows.reverse());
-      setSelected((previous) => {
-        const wanted = window.location.hash.startsWith("#token/")
-          ? window.location.hash.slice(7)
-          : previous?.address;
-        return wanted
-          ? (rows.find(
-              (r) => r.address.toLowerCase() === wanted.toLowerCase(),
-            ) ?? previous)
-          : previous;
-      });
-      setError("");
-    } catch (e) {
-      setError(e.shortMessage ?? e.message);
-    } finally {
-      setLoading(false);
-    }
+    })();
+    refreshRunning.current = { key, task };
+    return task;
   }
   useEffect(() => {
     const unsubscribe = watchAccount((address) => {
       setAccount(address);
       setQuote();
     });
-    const hash = localStorage.getItem(`voidfun-pending:${deployment.runtime}`);
-    if (hash) confirmed(hash, setStatus).catch(() => {});
     return unsubscribe;
   }, []);
   useEffect(() => {
-    refresh();
-    const timer = setInterval(refresh, 20000);
+    let checking = false;
+    const check = async () => {
+      const record = pendingTransaction(deployment.chainId, account);
+      if (!record || checking || busy || document.visibilityState === "hidden")
+        return;
+      checking = true;
+      try {
+        const receipt = await confirmed(record, setStatus, true);
+        if (receipt) {
+          invalidateMarket();
+          await refresh();
+        }
+      } catch {
+      } finally {
+        checking = false;
+      }
+    };
+    void check();
+    const timer = setInterval(check, 10000);
     return () => clearInterval(timer);
-  }, []);
+  }, [account, busy]);
+  useEffect(() => {
+    alive.current = true;
+    const poll = () => {
+      if (document.visibilityState !== "hidden" && navigator.onLine)
+        void refresh();
+    };
+    poll();
+    const timer = setInterval(poll, 30000);
+    document.addEventListener("visibilitychange", poll);
+    window.addEventListener("online", poll);
+    window.addEventListener("hashchange", poll);
+    return () => {
+      alive.current = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", poll);
+      window.removeEventListener("online", poll);
+      window.removeEventListener("hashchange", poll);
+    };
+  }, [offset]);
   useEffect(() => {
     let live = true;
     setQuote();
+    setToll(null);
     setBalance(0n);
     setEarned(0n);
     if (!selected?.token) return;
     Promise.all([
-      read(deployment.runtime, "Runtime", "quote", [1n]),
+      read(deployment.runtime, "DeedRuntime", "quote", []),
       account
         ? read(selected.token, "LaunchToken", "balanceOf", [account])
         : 0n,
@@ -249,6 +232,7 @@ function App({ network, onNetworkChange }) {
     setStatus();
     try {
       await fn();
+      invalidateMarket();
       await refresh();
     } catch (e) {
       setStatus((old) =>
@@ -430,12 +414,18 @@ function App({ network, onNetworkChange }) {
             {deployment.implementation || "Preparing"}.
           </div>
         )}
+        {deployment.gateway && !registered && (
+          <div className="notice">
+            This application is not currently registered. New launches and
+            trades are unavailable; earned fee claims remain accessible.
+          </div>
+        )}
         {view === "explore" && !selected && (
           <>
             <section className="hero">
               <div>
                 <div className="eyebrow">
-                  DEED 0001 / {deployment.chainName.toUpperCase()}
+                  {deployment.chainName.toUpperCase()} / VOIDFUN
                 </div>
                 <h1>
                   Small beginnings.
@@ -460,7 +450,10 @@ function App({ network, onNetworkChange }) {
               <div>
                 <span className="eyebrow">THE LAUNCH FLOOR</span>
                 <h2>Fresh on the curve</h2>
-                <p className="hint">Showing the latest 30 launches.</p>
+                <p className="hint">
+                  Newest first · page {Math.floor(offset / 24) + 1}. Search this
+                  page.
+                </p>
               </div>
               <input
                 aria-label="Search tokens"
@@ -525,13 +518,35 @@ function App({ network, onNetworkChange }) {
                 <p>
                   {search
                     ? "Try another name or ticker."
-                    : "Create a token and start its journey on Deed 0001."}
+                    : "Create a token and start its journey."}
                 </p>
                 {!search && (
                   <button onClick={() => setView("create")}>
                     Launch the first token ↗
                   </button>
                 )}
+              </div>
+            )}
+            {(offset > 0 || hasMore) && (
+              <div className="section-head" aria-label="Token pages">
+                <button
+                  disabled={offset === 0 || loading}
+                  onClick={() => {
+                    setLoading(true);
+                    setOffset(Math.max(0, offset - 24));
+                  }}
+                >
+                  ← Newer tokens
+                </button>
+                <button
+                  disabled={!hasMore || loading}
+                  onClick={() => {
+                    setLoading(true);
+                    setOffset(offset + 24);
+                  }}
+                >
+                  Older tokens →
+                </button>
               </div>
             )}
           </>
@@ -592,13 +607,21 @@ function App({ network, onNetworkChange }) {
                 <div>
                   <dt>Creation fee</dt>
                   <dd>
-                    {terms ? eth(terms.fee) + " " + nativeSymbol : "Loading…"}
+                    {terms
+                      ? eth(terms.fee) + " " + nativeSymbol
+                      : deployment.implementation
+                        ? "Loading…"
+                        : "Implementation pending"}
                   </dd>
                 </div>
                 <div>
                   <dt>Trading fee</dt>
                   <dd>
-                    {terms ? Number(terms.trade) / 100 + "%" : "Loading…"}
+                    {terms
+                      ? Number(terms.trade) / 100 + "%"
+                      : deployment.implementation
+                        ? "Loading…"
+                        : "Implementation pending"}
                   </dd>
                 </div>
               </dl>
@@ -618,7 +641,7 @@ function App({ network, onNetworkChange }) {
               </label>
               <button
                 className="primary wide"
-                disabled={busy || !deployment.gateway || !terms || !accepted}
+                disabled={busy || !registered || !terms || !accepted}
               >
                 Create token ↗
               </button>
@@ -639,7 +662,8 @@ function App({ network, onNetworkChange }) {
             <section className="trade-layout">
               <div>
                 <div className="eyebrow">
-                  DEED 0001 / {deployment.chainName.toUpperCase()}
+                  DEED {deployment.deedId.padStart(4, "0")} /{" "}
+                  {deployment.chainName.toUpperCase()}
                 </div>
                 <h1>{selected.name}</h1>
                 <p className="ticker">${selected.symbol}</p>
@@ -651,6 +675,7 @@ function App({ network, onNetworkChange }) {
                   Token {short(selected.token)} ↗
                 </a>
                 <CurveChart
+                  key={selected.address}
                   curve={selected}
                   ethUsd={ethUsd}
                   context={context}
@@ -769,7 +794,9 @@ function App({ network, onNetworkChange }) {
                   <div>
                     <dt>Deed toll · separate</dt>
                     <dd>
-                      {eth(toll)} {nativeSymbol}
+                      {toll === null
+                        ? "Updating…"
+                        : `${eth(toll)} ${nativeSymbol}`}
                     </dd>
                   </div>
                   <div>
@@ -788,6 +815,7 @@ function App({ network, onNetworkChange }) {
                   className="primary wide"
                   disabled={
                     busy ||
+                    !registered ||
                     selected.complete ||
                     !quote ||
                     !!quote.error ||
@@ -807,6 +835,12 @@ function App({ network, onNetworkChange }) {
             </section>
           </>
         )}
+        {snapshotAt && (
+          <p className="hint">
+            Market updated {new Date(snapshotAt).toLocaleTimeString()} · quotes
+            are checked again before signing.
+          </p>
+        )}
       </main>
       <footer>
         <a
@@ -822,10 +856,13 @@ function App({ network, onNetworkChange }) {
         </a>
         <span>
           Built on{" "}
-          <a href="https://www.voidchains.app" target="_blank" rel="noreferrer">
-            VoidChains
+          <a href="https://voiddeeds.xyz" target="_blank" rel="noreferrer">
+            Voiddeeds
           </a>{" "}
-          · Deed 0001
+          ·{" "}
+          {deployment.gateway
+            ? `Deed ${deployment.deedId.padStart(4, "0")}`
+            : "Awaiting manual publication"}
         </span>
         <span>Test tokens. Real curiosity.</span>
       </footer>

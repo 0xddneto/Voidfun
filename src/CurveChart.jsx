@@ -2,99 +2,106 @@ import React, { useEffect, useState } from "react";
 import { formatEther } from "viem";
 
 const cache = new Map();
-const priceText = (value) =>
-  "$" + Number(value).toLocaleString("en-US", { maximumSignificantDigits: 5 });
 export default function CurveChart({ curve, ethUsd, context }) {
-  const { client, abis, deployment, nativeSymbol } = context;
-  const cacheKey = `${deployment.chainId}:${curve.address}`;
+  const { deployment, nativeSymbol } = context;
+  const cacheKey = `${deployment.chainId}:${deployment.gateway}:${curve.address}`;
   const [mode, setMode] = useState("curve"),
     [history, setHistory] = useState([]),
     [error, setError] = useState(""),
     [hover, setHover] = useState(null);
+  const [before, setBefore] = useState(),
+    [older, setOlder] = useState(null),
+    [reading, setReading] = useState(false);
   useEffect(() => {
-    let live = true;
+    if (!curve.token) return;
+    let live = true,
+      running = false;
     async function load() {
+      if (running || document.visibilityState === "hidden" || !navigator.onLine)
+        return;
+      running = true;
+      setReading(true);
+      const key = cacheKey + ":" + (before ?? "latest");
       try {
-        const head = await client.getBlockNumber();
-        const saved = cache.get(cacheKey) ?? {
-          next: BigInt(deployment.deploymentBlock ?? 0),
-          logs: [],
-        };
-        const lower = head > 100000n ? head - 100000n : 0n;
-        let from = saved.next > lower ? saved.next : lower;
-        const logs = [...saved.logs];
-        while (from <= head) {
-          const to = from + 1999n < head ? from + 1999n : head;
-          logs.push(
-            ...(await client.getLogs({
-              address: curve.address,
-              event: abis.LaunchCurve.find(
-                (e) => e.type === "event" && e.name === "Trade",
-              ),
-              fromBlock: from,
-              toBlock: to,
-              strict: true,
-            })),
-          );
-          from = to + 1n;
-          if (!live) return;
-        }
-        const unique = [
-          ...new Map(
-            logs.map((log) => [log.transactionHash + ":" + log.logIndex, log]),
-          ).values(),
-        ].slice(-100);
-        const blocks = new Map();
-        for (const log of unique.slice(-60)) {
-          if (!blocks.has(String(log.blockNumber)))
-            blocks.set(
-              String(log.blockNumber),
-              Number(
-                (await client.getBlock({ blockNumber: log.blockNumber }))
-                  .timestamp,
-              ),
-            );
-        }
+        const p = new URLSearchParams({
+          chain: String(deployment.chainId),
+          curve: curve.address,
+        });
+        if (before !== undefined) p.set("before", before);
+        const response = await fetch("/api/history?" + p, {
+          signal: AbortSignal.timeout(45000),
+        });
+        const data = JSON.parse(await response.text(), (key, value) =>
+          ["quote", "reserve", "tokenReserve", "blockNumber"].includes(key) &&
+          typeof value === "string" &&
+          /^\d+$/.test(value)
+            ? BigInt(value)
+            : value,
+        );
+        if (!response.ok) throw Error(data.error);
+        cache.set(key, data);
         if (live) {
-          cache.set(cacheKey, { next: head + 1n, logs: unique });
-          setHistory(
-            unique.slice(-60).map((log) => ({
-              ...log,
-              time: blocks.get(String(log.blockNumber)),
-              price:
-                Number(
-                  formatEther(
-                    ((curve.phantom + log.args.reserve) * 10n ** 18n) /
-                      log.args.tokenReserve,
-                  ),
-                ) * ethUsd,
-            })),
+          setHistory(data.logs);
+          setOlder(data.before);
+          setError(
+            data.stale
+              ? "Showing cached history while the network recovers."
+              : "",
           );
-          setError("");
         }
-      } catch (e) {
-        if (live)
-          setError("Trade history is temporarily unavailable. Retry shortly.");
+      } catch {
+        const saved = cache.get(key);
+        if (live) {
+          if (saved) {
+            setHistory(saved.logs);
+            setOlder(saved.before);
+          }
+          setError("Trade history is temporarily unavailable.");
+        }
+      } finally {
+        running = false;
+        if (live) setReading(false);
       }
     }
-    load();
+    void load();
+    const timer = setInterval(load, 30000);
+    document.addEventListener("visibilitychange", load);
     return () => {
       live = false;
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", load);
     };
-  }, [curve, ethUsd]);
+  }, [cacheKey, before]);
+  const hasUsd = Number.isFinite(ethUsd) && ethUsd > 0;
+  const currency = hasUsd ? "USD" : nativeSymbol;
+  const rate = hasUsd ? ethUsd : 1;
+  const displayPrice = (value) =>
+    Number(value).toLocaleString("en-US", { maximumSignificantDigits: 5 }) +
+    " " +
+    currency;
+  const pricedHistory = history.map((log) => ({
+    ...log,
+    price:
+      Number(
+        formatEther(
+          ((curve.phantom + log.args.reserve) * 10n ** 18n) /
+            log.args.tokenReserve,
+        ),
+      ) * rate,
+  }));
   const supply = Number(formatEther(curve.supply)),
     tracked = Number(formatEther(curve.tracked)),
     quote = Number(formatEther(curve.phantom + curve.reserve)),
     k = tracked * quote,
-    currentPrice = (quote / tracked) * ethUsd,
+    currentPrice = (quote / tracked) * rate,
     sold = ((supply - tracked) / supply) * 100;
   const points =
     mode === "curve"
       ? Array.from({ length: 81 }, (_, i) => ({
           x: i,
-          y: (k / (supply * (1 - i / 100)) ** 2) * ethUsd,
+          y: (k / (supply * (1 - i / 100)) ** 2) * rate,
         }))
-      : history.map((trade, i) => ({ x: i, y: trade.price }));
+      : pricedHistory.map((trade, i) => ({ x: i, y: trade.price }));
   const max = Math.max(...points.map((p) => p.y), currentPrice) * 1.08,
     min =
       mode === "curve"
@@ -123,7 +130,7 @@ export default function CurveChart({ curve, ethUsd, context }) {
       <div className="chart-heading">
         <div>
           <small>Token price</small>
-          <strong>{priceText(currentPrice)}</strong>
+          <strong>{displayPrice(currentPrice)}</strong>
         </div>
         <div className="chart-tabs">
           <button
@@ -149,7 +156,9 @@ export default function CurveChart({ curve, ethUsd, context }) {
       {mode === "history" && history.length === 0 ? (
         <div className="chart-empty">
           {error ||
-            "No trades yet. The price history starts with the first trade."}
+            (reading
+              ? "Loading confirmed trades…"
+              : "No trades in this block range. Use Older trades to explore earlier activity.")}
         </div>
       ) : (
         <svg
@@ -187,7 +196,7 @@ export default function CurveChart({ curve, ethUsd, context }) {
                   stroke="#e0e5d6"
                 />
                 <text x={left - 8} y={y(val) + 4} textAnchor="end">
-                  {priceText(val)}
+                  {displayPrice(val)}
                 </text>
               </g>
             );
@@ -261,7 +270,7 @@ export default function CurveChart({ curve, ethUsd, context }) {
                 x={Math.max(left + 10, Math.min(x(tip.x), width - 110))}
                 y={top + 12}
               >
-                {priceText(tip.y)}
+                {displayPrice(tip.y)}
               </text>
             </>
           )}
@@ -270,9 +279,22 @@ export default function CurveChart({ curve, ethUsd, context }) {
       <p className="hint">
         {mode === "curve"
           ? "Price curve · dot marks the current position."
-          : "Confirmed trades · latest 60 within the most recent 100,000 blocks."}
+          : "Latest 60 confirmed trades in this block range."}
       </p>
-      {error && mode === "curve" && <p className="hint">{error}</p>}
+      {error && <p className="hint">{error}</p>}
+      {mode === "history" && (
+        <div className="section-head">
+          <button
+            disabled={before === undefined || reading}
+            onClick={() => setBefore(undefined)}
+          >
+            Latest trades
+          </button>
+          <button disabled={!older || reading} onClick={() => setBefore(older)}>
+            Older trades
+          </button>
+        </div>
+      )}
       {history.length > 0 && (
         <div className="trade-history">
           <h3>Recent trades</h3>

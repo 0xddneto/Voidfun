@@ -1,12 +1,13 @@
-name: Validate and publish test preview
+name: Validate Voidfun
 on:
   push:
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: voidfun-preview
-  cancel-in-progress: false
+  group: voidfun-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   validate:
     runs-on: windows-latest
@@ -18,7 +19,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run compile
-      - run: npm test
+      - run: node --test tests/services.test.mjs
       - run: node scripts/test-networks.mjs
       - run: |
           foreach ($id in @(46630,11155111,84532,763373,5042002)) {
@@ -27,33 +28,5 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
       - run: npm run build
-  build:
-    needs: validate
-    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-        env:
-          DEPLOY_BASE: /Voidfun/
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy preview
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - run: npx playwright install chromium
+      - run: npx playwright test

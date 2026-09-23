@@ -17,6 +17,7 @@ import {
   encodeDeployData,
   keccak256,
   isAddress,
+  toHex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 const configs = JSON.parse(fs.readFileSync("src/networks.json"));
@@ -65,20 +66,27 @@ const client = createPublicClient({ chain, transport: http(config.rpc) }),
 if ((await client.getChainId()) !== config.chainId) throw Error("Wrong chain");
 const artifact = (name) =>
   JSON.parse(fs.readFileSync("artifacts/" + name + ".json"));
-for (const address of [config.runtime, config.price])
+for (const address of [config.runtimeFactory, config.price])
   if (((await client.getCode({ address })) ?? "0x") === "0x")
     throw Error("Missing protocol bytecode");
 fs.mkdirSync("deployments", { recursive: true });
 fs.mkdirSync(".tools", { recursive: true });
-const path = `deployments/${config.chainId}.json`;
+const releaseTag =
+  config.protocolRelease +
+  "-" +
+  config.runtimeFactory.toLowerCase().slice(2, 10);
+const path = `deployments/${config.chainId}-${releaseTag}.json`;
 const terms = {
   fee: String(fee),
   share: String(share),
   creation: String(creation),
   treasury: values.treasury.toLowerCase(),
   publisher: account.address.toLowerCase(),
-  runtime: config.runtime,
+  runtimeFactory: config.runtimeFactory,
   price: config.price,
+  build: keccak256(
+    toHex(fs.readFileSync("artifacts/compiler-input.json", "utf8")),
+  ),
 };
 let state = fs.existsSync(path)
   ? JSON.parse(fs.readFileSync(path))
@@ -92,13 +100,37 @@ const save = () => fs.writeFileSync(path, JSON.stringify(state, null, 2));
 async function send(name, request) {
   let record = state.transactions[name];
   if (!record) {
-    const prepared = await wallet.prepareTransactionRequest(request);
+    const [pending, latest] = await Promise.all([
+      client.getTransactionCount({
+        address: account.address,
+        blockTag: "pending",
+      }),
+      client.getTransactionCount({
+        address: account.address,
+        blockTag: "latest",
+      }),
+    ]);
+    if (pending !== latest)
+      throw Error(
+        "Operator has a pending transaction; retry after confirmation.",
+      );
+    const prepared = await wallet.prepareTransactionRequest({
+      ...request,
+      nonce: latest,
+    });
     const gas = await client.estimateGas({ ...request, account });
     prepared.gas = (gas * 120n) / 100n;
+    const maximumCost =
+      prepared.gas * (prepared.maxFeePerGas ?? prepared.gasPrice);
+    const balance = await client.getBalance({ address: account.address });
+    if (maximumCost > balance / 2n)
+      throw Error(
+        "Deployment would consume more than half of the available test gas. Fund the wallet first.",
+      );
     const serialized = await wallet.signTransaction(prepared);
     const hash = keccak256(serialized);
     fs.writeFileSync(
-      ".tools/" + config.chainId + "-" + name + ".signed-tx",
+      ".tools/" + config.chainId + "-" + releaseTag + "-" + name + ".signed-tx",
       serialized,
     );
     record = state.transactions[name] = { hash };
@@ -109,7 +141,7 @@ async function send(name, request) {
     .catch(() => null);
   if (!receipt) {
     const serialized = fs.readFileSync(
-      ".tools/" + config.chainId + "-" + name + ".signed-tx",
+      ".tools/" + config.chainId + "-" + releaseTag + "-" + name + ".signed-tx",
       "utf8",
     );
     try {
@@ -160,16 +192,19 @@ async function deploy(name, args = []) {
   });
   if (
     !r.contractAddress ||
-    ((await client.getCode({ address: r.contractAddress })) ?? "0x") === "0x"
+    ((await client.getCode({
+      address: r.contractAddress,
+      blockNumber: r.blockNumber,
+    })) ?? "0x") === "0x"
   )
     throw Error("Missing deployed code");
   return r.contractAddress;
 }
-// When using a shared operator wallet, caller must hold the protocol operator advisory lock throughout this process.
+// Each signed transaction is persisted before broadcast; do not run two deploy processes for the same signer and chain.
 const token = await deploy("LaunchToken"),
   curve = await deploy("LaunchCurve");
 const logic = await deploy("Voidfun", [
-  config.runtime,
+  config.runtimeFactory,
   config.price,
   values.treasury,
   token,
@@ -183,6 +218,7 @@ save();
 Object.assign(config, {
   implementation: logic,
   status: "awaiting-manual-publication",
+  deploymentManifest: path,
 });
 fs.writeFileSync("src/networks.json", JSON.stringify(configs, null, 2) + "\n");
 console.log(

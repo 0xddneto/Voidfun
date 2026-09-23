@@ -1,22 +1,22 @@
 {
   "chainId": 46630,
-  "at": "2026-09-18T14:20:19.710Z",
+  "at": "2026-09-23T13:34:24.960Z",
   "contracts": [
     {
       "name": "LaunchToken",
-      "address": "0xbd8283d71be8aabc4b2ecd7e9256238ebf9edbad",
+      "address": "0x895ad6c647590b4ed2567f22ce60dbfbfb55089b",
       "bytecodeMatches": true,
       "comparison": "executable runtime excluding metadata and separately checked immutable values"
     },
     {
       "name": "LaunchCurve",
-      "address": "0xff5daf41128c1195c31b514730f8262d0c8ebaf1",
+      "address": "0x9f80dec2719c7be2bdff4305b9422705daa3bca2",
       "bytecodeMatches": true,
       "comparison": "executable runtime excluding metadata and separately checked immutable values"
     },
     {
       "name": "Voidfun",
-      "address": "0xd5d77c5bd692b42b2e99fb3708aab74084e5cdbd",
+      "address": "0x191b37b81596102d24812de78efe4f92ae1de121",
       "bytecodeMatches": true,
       "comparison": "executable runtime excluding metadata and separately checked immutable values"
     }
