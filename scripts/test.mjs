@@ -430,6 +430,11 @@ try {
     "completion clips/refunds excess, retains 20% tokens and closes trading without a pool",
   );
   const earned = await read(curve, "LaunchCurve", "claimable", [treasury]);
+  await assert.rejects(() =>
+    write(curve, "LaunchCurve", "claim", [other], { account: other }),
+  );
+  for (let i = 0; i < 25; i++)
+    await execute("createToken", ["Pagination " + i, "PAGE", ""]);
   await write(runtime, "DeedRuntime", "remove", [gateway]);
   await write(curve, "LaunchCurve", "claim", [treasury], { account: treasury });
   assert(earned > 0n);
@@ -447,11 +452,22 @@ try {
     deploymentBlock: String(pub.blockNumber),
   };
   const market = await loadMarket(localConfig, { curve });
-  assert.equal(market.rows.length, 2);
+  assert.equal(market.rows.length, 24);
+  assert.equal(market.count, 27);
+  assert.equal(market.hasMore, true);
+  assert(!market.rows.some((row) => row.address === curve));
   assert.equal(market.selected.address, curve);
   assert.equal(market.published, false);
   assert.equal(market.ethUsd, Number(usdPrice));
-  assert.equal((await loadMarket(localConfig, { offset: 24 })).rows.length, 0);
+  const older = await loadMarket(localConfig, { offset: 24 });
+  assert.equal(older.rows.length, 3);
+  assert.equal(older.hasMore, false);
+  assert(
+    !older.rows.some((row) =>
+      market.rows.some((latest) => latest.address === row.address),
+    ),
+  );
+  assert.equal((await loadMarket(localConfig, { offset: 48 })).rows.length, 0);
   await assert.rejects(() => loadMarket(localConfig, { curve: other }));
   const history = await loadHistory(localConfig, curve);
   assert(history.logs.length >= 3);
