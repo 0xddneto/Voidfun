@@ -14,6 +14,12 @@ import {
 import networks from "./networks.json";
 export { networks };
 import abis from "./abis.json";
+import {
+  pendingTransaction,
+  savePending,
+  clearPending,
+  receiptState,
+} from "./transactions";
 export function createNetworkContext(deployment) {
   const nativeSymbol = deployment.nativeSymbol;
   const chain = defineChain({
@@ -30,6 +36,7 @@ export function createNetworkContext(deployment) {
   });
   const client = createPublicClient({
     chain,
+    pollingInterval: 1000,
     transport: fallback(
       [deployment.rpc, ...(deployment.rpcFallbacks ?? [])].map((url) =>
         http(url, {
@@ -46,7 +53,7 @@ export function createNetworkContext(deployment) {
     client.readContract({ address, abi: abis[name], functionName, args });
   async function query(fn, args = []) {
     if (!deployment.gateway) throw Error("The test deployment is not ready.");
-    const result = await read(deployment.gateway, "AppGateway", "query", [
+    const result = await read(deployment.gateway, "Gateway", "query", [
       encodeFunctionData({ abi: abis.Voidfun, functionName: fn, args }),
     ]);
     return decodeFunctionResult({
@@ -70,85 +77,138 @@ export function createNetworkContext(deployment) {
       transport: custom(provider),
     });
   }
-  async function confirmed(hash, onStatus) {
-    let receipt;
-    try {
-      receipt = await client.waitForTransactionReceipt({
-        hash,
-        confirmations: 2,
-        timeout: 180000,
-      });
-      const block = await client.getBlock({ blockNumber: receipt.blockNumber });
-      if (block.hash !== receipt.blockHash)
-        throw Error("Receipt is not canonical yet.");
-    } catch (e) {
+  async function confirmed(record, onStatus, once = false) {
+    const deadline = Date.now() + 180000;
+    do {
+      try {
+        const state = await receiptState(client, record);
+        if (state.kind !== "pending") {
+          clearPending(record);
+          const text =
+            state.kind === "success"
+              ? "Transaction completed"
+              : state.kind === "replaced"
+                ? "Transaction replaced or cancelled"
+                : "Transaction reverted";
+          onStatus({
+            kind: state.kind === "success" ? "success" : "error",
+            text,
+            hash: state.hash,
+          });
+          if (state.kind !== "success")
+            throw Object.assign(Error(text), { terminal: true });
+          return state.receipt;
+        }
+      } catch (e) {
+        if (e.terminal) throw e;
+      }
       onStatus({
         kind: "pending",
-        text:
-          "Check the transaction before retrying. " +
-          (e.shortMessage ?? e.message),
-        hash,
+        text: "Transaction submitted. Waiting for confirmation.",
+        hash: record.hash,
       });
-      throw e;
-    }
-    localStorage.removeItem(`voidfun-pending:${deployment.runtime}`);
-    if (receipt.status !== "success") {
-      onStatus({ kind: "error", text: "Transaction reverted", hash });
-      throw Error("Transaction reverted.");
-    }
-    onStatus({ kind: "success", text: "Transaction completed", hash });
-    return receipt;
+      if (once) return null;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    } while (Date.now() < deadline);
+    throw Error(
+      "Confirmation is taking longer. Your pending transaction will be checked again automatically.",
+    );
   }
-  function requireNoPending() {
-    if (localStorage.getItem(`voidfun-pending:${deployment.runtime}`))
+  function requireNoPending(account) {
+    if (pendingTransaction(deployment.chainId, account))
       throw Error(
-        "A transaction is still pending. Reload to check its receipt before sending another.",
+        "A transaction is still pending on this network. Wait for its confirmation before retrying.",
       );
   }
+  async function send(w, spec, onStatus) {
+    const data = encodeFunctionData({
+      abi: spec.abi,
+      functionName: spec.functionName,
+      args: spec.args,
+    });
+    const nonce = await client.getTransactionCount({
+      address: w.account.address,
+      blockTag: "pending",
+    });
+    const hash = await w.writeContract({ ...spec, nonce });
+    const record = {
+      chainId: deployment.chainId,
+      account: w.account.address,
+      hash,
+      nonce,
+      to: spec.address,
+      data,
+      value: String(spec.value ?? 0n),
+    };
+    savePending(record);
+    onStatus({ kind: "pending", text: "Transaction submitted", hash });
+    return confirmed(record, onStatus);
+  }
   async function direct(name, address, fn, args, account, onStatus) {
-    requireNoPending();
+    requireNoPending(account);
     const w = await wallet(account);
     const spec = { address, abi: abis[name], functionName: fn, args };
     await client.simulateContract({ ...spec, account: w.account });
     onStatus({ text: "Confirm in your wallet." });
-    const hash = await w.writeContract(spec);
-    localStorage.setItem(`voidfun-pending:${deployment.runtime}`, hash);
-    onStatus({ kind: "pending", text: "Transaction submitted", hash });
-    return confirmed(hash, onStatus);
+    return send(w, spec, onStatus);
   }
   async function execute(fn, args, value, account, onStatus) {
     if (!deployment.gateway)
       throw Error("Publish the application manually on this network first.");
-    requireNoPending();
+    requireNoPending(account);
     const w = await wallet(account);
+    const actualRuntime = await read(
+      deployment.runtimeFactory,
+      "RuntimeFactory",
+      "runtimeOf",
+      [BigInt(deployment.deedId)],
+    );
+    if (actualRuntime.toLowerCase() !== deployment.runtime?.toLowerCase())
+      throw Error("Application runtime does not match this network.");
+    const registration = await read(
+      actualRuntime,
+      "DeedRuntime",
+      "applications",
+      [deployment.gateway],
+    );
+    if (
+      !registration[3] ||
+      registration[1].toLowerCase() !== deployment.implementation.toLowerCase()
+    )
+      throw Error(
+        "Application is not registered with the configured implementation.",
+      );
     const [toll, revision] = await read(
       deployment.runtime,
-      "Runtime",
+      "DeedRuntime",
       "quote",
-      [BigInt(deployment.deedId)],
+      [],
     );
     const spec = {
       address: deployment.runtime,
-      abi: abis.Runtime,
+      abi: abis.DeedRuntime,
       functionName: "execute",
       args: [
-        deployment.gateway,
-        encodeFunctionData({ abi: abis.Voidfun, functionName: fn, args }),
-        revision,
-        toll,
-        value,
-        1900000n,
-        BigInt(Math.floor(Date.now() / 1000) + 600),
+        {
+          app: deployment.gateway,
+          data: encodeFunctionData({
+            abi: abis.Voidfun,
+            functionName: fn,
+            args,
+          }),
+          revision,
+          maxToll: toll,
+          appValue: value,
+          appGas: 1900000n,
+          deadline: BigInt(Math.floor(Date.now() / 1000) + 600),
+        },
       ],
       value: value + toll,
       gas: 3000000n,
     };
     await client.simulateContract({ ...spec, account: w.account });
     onStatus({ text: "Confirm in your wallet." });
-    const hash = await w.writeContract(spec);
-    localStorage.setItem(`voidfun-pending:${deployment.runtime}`, hash);
-    onStatus({ kind: "pending", text: "Transaction submitted", hash });
-    return confirmed(hash, onStatus);
+    return send(w, spec, onStatus);
   }
 
   return {

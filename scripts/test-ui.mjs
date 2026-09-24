@@ -1,5 +1,9 @@
 import { chromium, expect } from "@playwright/test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+const published = Boolean(
+  JSON.parse(fs.readFileSync("src/networks.json"))[0].gateway,
+);
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 try {
   const page = await browser.newPage({
@@ -19,9 +23,12 @@ try {
   await page.getByLabel("Token name", { exact: true }).fill("My token");
   await page.getByLabel("Ticker", { exact: true }).fill("TEST");
   await page.getByRole("checkbox").check();
-  await expect(
-    page.getByRole("button", { name: "Create token ↗", exact: true }),
-  ).toBeEnabled({ timeout: 30000 });
+  const submit = page.getByRole("button", {
+    name: "Create token ↗",
+    exact: true,
+  });
+  if (published) await expect(submit).toBeEnabled({ timeout: 30000 });
+  else await expect(submit).toBeDisabled();
   await expect(page.getByText("0 ETH", { exact: true })).toBeVisible();
   await expect(page.getByText("1%", { exact: true })).toBeVisible();
   assert(
@@ -43,7 +50,7 @@ try {
   );
   assert.deepEqual(errors, []);
   console.log(
-    "PASS desktop/mobile UI, no overflow or runtime errors, live on-chain fees and creation button enabled",
+    "PASS desktop/mobile UI, no overflow or runtime errors, live on-chain fees and publication boundary",
   );
 } finally {
   await browser.close();

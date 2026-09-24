@@ -43,7 +43,11 @@ await assert.rejects(
     ),
   /did not switch/,
 );
-assert.equal(new Set(ns.map((n) => n.runtime)).size, 5);
+assert.equal(new Set(ns.map((n) => n.runtimeFactory)).size, 5);
+assert(ns.every((n) => n.protocolRelease === "voiddeeds-genesis-20260922"));
+assert(
+  ns.every((n) => !n.gateway || (n.runtime && n.publicationTx && n.publisher)),
+);
 assert(
   !fs
     .readFileSync("scripts/deploy.mjs", "utf8")

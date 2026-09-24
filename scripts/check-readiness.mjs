@@ -1,57 +1,44 @@
 import fs from "node:fs";
-import { createPublicClient, http, parseEther, formatEther } from "viem";
-const d = JSON.parse(fs.readFileSync("src/networks.json")).find(
-  (n) => n.chainId === Number(process.argv[2] ?? 46630),
-);
-if (!d) throw Error("Unsupported network");
-const c = createPublicClient({
-  transport: http(d.rpc, { timeout: 15000, retryCount: 0 }),
-});
-const abi = JSON.parse(fs.readFileSync("src/abis.json"));
+import assert from "node:assert/strict";
+import { formatEther, parseEther } from "viem";
+import { networks, clientFor, abis } from "../shared/market.js";
+const d = networks.find((n) => n.chainId === Number(process.argv[2] ?? 46630));
+if (!d) throw Error("Unsupported network.");
+const c = clientFor(d);
+assert.equal(await c.getChainId(), d.chainId);
 const result = {
   checkedAt: new Date().toISOString(),
-  chainId: await c.getChainId(),
-  runtimeHasCode: (await c.getCode({ address: d.runtime })) !== "0x",
-  priceHasCode: (await c.getCode({ address: d.price })) !== "0x",
+  chainId: d.chainId,
+  release: d.protocolRelease,
+  published: Boolean(d.gateway),
+  implementation: d.implementation,
+  contracts: {},
 };
-try {
-  result.toll = (
-    await c.readContract({
-      address: d.runtime,
-      abi: abi.Runtime,
-      functionName: "quote",
-      args: [1n],
-    })
-  ).map(String);
-} catch (e) {
-  result.quoteError = e.shortMessage ?? e.message;
+for (const [name, address] of Object.entries({
+  factory: d.runtimeFactory,
+  oracle: d.price,
+  ...(d.implementation ? { implementation: d.implementation } : {}),
+})) {
+  result.contracts[name] = Boolean((await c.getCode({ address }))?.length > 2);
+  assert(result.contracts[name], name + " has no code");
 }
 try {
   result.initialFdvNative = formatEther(
     await c.readContract({
       address: d.price,
-      abi: abi.NativePrice,
+      abi: abis.TestnetPriceOracle,
       functionName: "quote",
       args: [parseEther("3000")],
     }),
   );
-} catch (e) {
-  result.priceError = e.shortMessage ?? e.message;
+} catch {
+  result.oracleUnavailable = true;
 }
 result.operatorBalanceNative = formatEther(
   await c.getBalance({ address: "0x224385Bd4dBe4c5cb0ab469fe06ACdA734541A94" }),
 );
-try {
-  const r = await fetch(
-    `https://www.voidchains.app/api/activation?id=1&chain=${d.chainId}`,
-  );
-  result.activationStatus = r.status;
-  result.activation = await r.json();
-} catch (e) {
-  result.activationError = e.message;
-}
 fs.writeFileSync(
-  `verification/readiness-${d.chainId}.json`,
-  JSON.stringify(result, null, 2),
+  "verification/readiness-" + d.chainId + ".json",
+  JSON.stringify(result, null, 2) + "\n",
 );
-console.log(JSON.stringify(result, null, 2));
+console.log(JSON.stringify(result));

@@ -14,11 +14,11 @@ const sources = Object.fromEntries(
     ]),
 );
 for (const f of fs
-  .readdirSync("tests/protocol")
+    .readdirSync("tests/protocol/current")
   .filter((f) => f.endsWith(".sol")))
-  sources["tests/protocol/" + f] = {
+  sources["tests/protocol/current/" + f] = {
     content: fs
-      .readFileSync("tests/protocol/" + f, "utf8")
+      .readFileSync("tests/protocol/current/" + f, "utf8")
       .replace(/\r\n/g, "\n"),
   };
 const input = {

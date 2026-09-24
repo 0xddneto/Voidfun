@@ -6,7 +6,7 @@ const d = JSON.parse(fs.readFileSync("src/networks.json")).find(
   (n) => n.chainId === id,
 );
 if (!d?.implementation) throw Error("Implementation missing");
-const manifest = JSON.parse(fs.readFileSync(`deployments/${id}.json`));
+const manifest = JSON.parse(fs.readFileSync(d.deploymentManifest));
 const c = createPublicClient({ transport: http(d.rpc) });
 assert.equal(await c.getChainId(), id);
 const result = { chainId: id, at: new Date().toISOString(), contracts: [] };
@@ -14,11 +14,11 @@ for (const name of [
   "LaunchToken",
   "LaunchCurve",
   "Voidfun",
-  ...(d.gateway ? ["AppGateway"] : []),
+  ...(d.gateway ? ["Gateway"] : []),
 ]) {
   const a = JSON.parse(fs.readFileSync("artifacts/" + name + ".json")),
     address =
-      name === "AppGateway" ? d.gateway : manifest.transactions[name].address;
+      name === "Gateway" ? d.gateway : manifest.transactions[name].address;
   let expected = a.evm.deployedBytecode.object,
     actual = (await c.getCode({ address })).slice(2);
   for (const ranges of Object.values(
@@ -46,7 +46,7 @@ for (const name of [
     address,
     bytecodeMatches: true,
     comparison:
-      name === "AppGateway"
+      name === "Gateway"
         ? "executable code excluding immutable values and source-path metadata"
         : "executable runtime excluding metadata and separately checked immutable values",
   });
@@ -59,24 +59,23 @@ const read = (address, name, functionName) =>
   });
 if (d.gateway) {
   assert.equal(
-    (await read(d.gateway, "AppGateway", "implementation")).toLowerCase(),
+    (await read(d.gateway, "Gateway", "implementation")).toLowerCase(),
     d.implementation.toLowerCase(),
   );
   assert.equal(
-    (await read(d.gateway, "AppGateway", "runtime")).toLowerCase(),
+    (await read(d.gateway, "Gateway", "runtime")).toLowerCase(),
     d.runtime.toLowerCase(),
   );
-  assert.equal(await read(d.gateway, "AppGateway", "deedId"), 1n);
+  assert.equal(await read(d.gateway, "Gateway", "deedId"), BigInt(d.deedId));
 }
 assert.equal(
-  (await read(d.implementation, "Voidfun", "RUNTIME")).toLowerCase(),
-  d.runtime.toLowerCase(),
+  (await read(d.implementation, "Voidfun", "RUNTIME_FACTORY")).toLowerCase(),
+  d.runtimeFactory.toLowerCase(),
 );
 assert.equal(
   (await read(d.implementation, "Voidfun", "PRICE")).toLowerCase(),
   d.price.toLowerCase(),
 );
-assert.equal(await read(d.runtime, "Runtime", "PROTOCOL_BPS"), 1000n);
 for (const [field, name] of [
   ["TOKEN_LOGIC", "LaunchToken"],
   ["CURVE_LOGIC", "LaunchCurve"],
@@ -100,5 +99,5 @@ fs.writeFileSync(
   JSON.stringify(result, null, 2),
 );
 console.log(
-  "PASS deployed bytecodes, Runtime 90/10 and separate app fee configuration verified.",
+  "PASS deployed bytecodes, current factory and separate app fee configuration verified.",
 );

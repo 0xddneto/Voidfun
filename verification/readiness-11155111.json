@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-09-24T12:37:27.585Z",
+  "chainId": 11155111,
+  "release": "voiddeeds-genesis-20260922",
+  "published": false,
+  "implementation": "0x94f7ddd1649e8d35885c96bf423933f5c93b69ea",
+  "contracts": {
+    "factory": true,
+    "oracle": true,
+    "implementation": true
+  },
+  "initialFdvNative": "1.133040694100729207",
+  "operatorBalanceNative": "0.067593448988844592"
+}

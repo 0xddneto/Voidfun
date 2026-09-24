@@ -5,5 +5,7 @@ artifacts/
 .env
 .env.*
 .vercel/
+test-results/
+playwright-report/
 .env*
 !.env.example

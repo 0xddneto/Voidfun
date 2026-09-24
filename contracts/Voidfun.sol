@@ -8,12 +8,19 @@ interface IRuntime {
     function executingUser() external view returns (address);
     function executingApp() external view returns (address);
 }
+interface IRuntimeFactory {
+    function runtimeOf(uint256 id) external view returns (address);
+}
+interface IGateway {
+    function runtime() external view returns (address);
+    function deedId() external view returns (uint256);
+}
 interface IPrice {
     function quote(uint256 usd18) external view returns (uint256);
 }
 /// @notice Delegatecall implementation for a Deed gateway; supported testnets only.
 contract Voidfun {
-    address public immutable RUNTIME;
+    address public immutable RUNTIME_FACTORY;
     address public immutable PRICE;
     address public immutable TREASURY;
     address public immutable TOKEN_LOGIC;
@@ -35,7 +42,7 @@ contract Voidfun {
         uint256 initialFdvEth
     );
     constructor(
-        address runtime_,
+        address factory_,
         address price_,
         address treasury_,
         address tokenLogic,
@@ -49,7 +56,7 @@ contract Voidfun {
             "TESTNET_ONLY"
         );
         require(
-            runtime_.code.length > 0 &&
+            factory_.code.length > 0 &&
                 price_.code.length > 0 &&
                 tokenLogic.code.length > 0 &&
                 curveLogic.code.length > 0 &&
@@ -57,7 +64,7 @@ contract Voidfun {
             "CONFIG"
         );
         require(fee <= 1000 && share <= 5000, "FEES");
-        RUNTIME = runtime_;
+        RUNTIME_FACTORY = factory_;
         PRICE = price_;
         TREASURY = treasury_;
         TOKEN_LOGIC = tokenLogic;
@@ -67,12 +74,16 @@ contract Voidfun {
         CREATE_FEE = creationFee;
     }
     function _user() private view returns (address user) {
+        // The implementation can be deployed before any Deed runtime exists.
+        // Only gateways executed by a runtime from the pinned factory may act.
+        address runtime = IGateway(address(this)).runtime();
         require(
-            msg.sender == RUNTIME &&
-                IRuntime(RUNTIME).executingApp() == address(this),
+            msg.sender == runtime &&
+                IRuntimeFactory(RUNTIME_FACTORY).runtimeOf(IGateway(address(this)).deedId()) == runtime &&
+                IRuntime(runtime).executingApp() == address(this),
             "RUNTIME"
         );
-        user = IRuntime(RUNTIME).executingUser();
+        user = IRuntime(runtime).executingUser();
         require(user != address(0), "USER");
     }
     function createToken(

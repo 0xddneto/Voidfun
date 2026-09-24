@@ -8,3 +8,8 @@ artifacts
 verification
 contracts
 tests
+test-results
+playwright-report
+deployments
+archive
+scripts
