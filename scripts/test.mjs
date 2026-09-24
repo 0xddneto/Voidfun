@@ -476,6 +476,68 @@ try {
   ok(
     "actual market API reads, deep links, pagination, removed registration and canonical history",
   );
+  await write(deed, "DeedCollection", "mint", [], {
+    account: other,
+    value: parseEther(".001"),
+  });
+  const publication2 = await write(factory, "RuntimeFactory", "publish", [
+    2n,
+    logic,
+    "0x",
+    keccak256(toHex("second-deed")),
+  ]);
+  const gateway2 = publication2.logs
+    .flatMap((log) => {
+      try {
+        return [decodeEventLog({ abi: A("DeedRuntime").abi, ...log })];
+      } catch {
+        return [];
+      }
+    })
+    .find((event) => event.eventName === "Published").args.gateway;
+  const runtime2 = await read(factory, "RuntimeFactory", "runtimeOf", [2n]);
+  assert.notEqual(runtime2, runtime);
+  await c.request({ method: "evm_mine" });
+  const [toll2, revision2] = await read(runtime2, "DeedRuntime", "quote");
+  const call2 = async (fn, args) =>
+    write(
+      runtime2,
+      "DeedRuntime",
+      "execute",
+      [
+        {
+          app: gateway2,
+          data: encodeFunctionData({
+            abi: A("Voidfun").abi,
+            functionName: fn,
+            args,
+          }),
+          revision: revision2,
+          maxToll: toll2,
+          appValue: 0n,
+          appGas: 1900000n,
+          deadline: BigInt(Math.floor(Date.now() / 1000) + 3600),
+        },
+      ],
+      { account: trader, value: toll2, gas: 3000000n },
+    );
+  await call2("createToken", ["Another Deed", "NEW", ""]);
+  await assert.rejects(() => call2("sell", [curve2, 1n, 0n]));
+  const secondMarket = await loadMarket({
+    ...localConfig,
+    gateway: gateway2,
+    runtime: runtime2,
+    deedId: "2",
+  });
+  assert.equal(secondMarket.count, 1);
+  assert.equal(
+    secondMarket.rows[0].creator.toLowerCase(),
+    trader.toLowerCase(),
+  );
+  assert.equal((await loadMarket(localConfig)).count, 27);
+  ok(
+    "one implementation supports separate Deed runtimes without crossing launch lists or trading authority",
+  );
   fs.writeFileSync(
     `verification/local-tests-${testChainId}.json`,
     JSON.stringify(

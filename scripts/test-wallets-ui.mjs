@@ -51,10 +51,18 @@ try {
           window.providers = {};
           function provider(name) {
             const events = {};
+            let chain = "0xb626";
             const p = {
-              request: async ({ method }) => {
+              request: async ({ method, params }) => {
                 window.calls.push(name + ":" + method);
-                if (method === "eth_requestAccounts") return [address];
+                if (
+                  method === "eth_requestAccounts" ||
+                  method === "eth_accounts"
+                )
+                  return [address];
+                if (method === "eth_chainId") return chain;
+                if (method === "wallet_switchEthereumChain")
+                  chain = params[0].chainId;
                 return null;
               },
               on: (name, fn) => (events[name] = fn),
@@ -87,7 +95,8 @@ try {
         page.getByRole("button", { name: "0xA7a1…2770" }),
       ).toBeVisible();
       await page.evaluate(async (address) => {
-        await (await import("/src/web3.js")).wallet(address);
+        const { createNetworkContext, networks } = await import("/src/web3.js");
+        await createNetworkContext(networks[0]).wallet(address);
       }, address);
       const calls = await page.evaluate(() => window.calls);
       assert(calls.includes("Rabby:wallet_switchEthereumChain"));

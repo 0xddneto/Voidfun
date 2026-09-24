@@ -40,11 +40,12 @@
     "deedId": "1",
     "runtime": null,
     "gateway": null,
-    "implementation": null,
+    "implementation": "0x94f7ddd1649e8d35885c96bf423933f5c93b69ea",
     "publisher": null,
     "publicationTx": null,
-    "status": "implementation-pending",
-    "deploymentBlock": "0"
+    "status": "awaiting-manual-publication",
+    "deploymentBlock": "0",
+    "deploymentManifest": "deployments/11155111-voiddeeds-genesis-20260922-29e8a0cc.json"
   },
   {
     "chainId": 84532,
