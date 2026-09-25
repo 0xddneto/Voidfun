@@ -1,4 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
+const deployments = JSON.parse(
+  readFileSync(new URL("../../src/networks.json", import.meta.url)),
+);
 const networks = [
   [46630, "Robinhood Testnet", "ETH"],
   [11155111, "Ethereum Sepolia", "ETH"],
@@ -21,15 +25,21 @@ test.beforeEach(async ({ page }) => {
   );
 });
 for (const [id, name, symbol] of networks)
-  test(`manual publication boundary and currency: ${name}`, async ({
+  test(`unregistered publication boundary and currency: ${name}`, async ({
     page,
   }) => {
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto("/?chain=" + id);
     await expect(page.getByLabel("Execution network")).toHaveValue(String(id));
+    const deployment = deployments.find((network) => network.chainId === id);
     await expect(
-      page.getByText("Publish Voidfun manually on", { exact: false }),
+      page.getByText(
+        deployment.gateway
+          ? "This application is not currently registered."
+          : "Publish Voidfun manually on",
+        { exact: false },
+      ),
     ).toBeVisible();
     await page
       .getByRole("button", { name: "Create a token", exact: true })
@@ -38,9 +48,42 @@ for (const [id, name, symbol] of networks)
     await expect(page.getByText("1%", { exact: true })).toBeVisible();
     await expect(page.locator("form button.primary")).toBeDisabled();
     await expect(
-      page.getByText("Awaiting manual publication", { exact: false }),
+      page.getByText(
+        deployment.gateway
+          ? `Deed ${deployment.deedId.padStart(4, "0")}`
+          : "Awaiting manual publication",
+        { exact: false },
+      ),
     ).toBeVisible();
     assertNoErrors(errors);
+  });
+for (const [id, name] of networks)
+  test(`published gateway opens creation: ${name}`, async ({ page }) => {
+    await page.route("**/api/market?**", (route) =>
+      route.fulfill({
+        json: {
+          ready: true,
+          published: true,
+          terms: { fee: "0", trade: "100", share: "3000" },
+          rows: [],
+          hasMore: false,
+          generatedAt: new Date().toISOString(),
+        },
+      }),
+    );
+    await page.goto("/?chain=" + id);
+    await page
+      .getByRole("button", { name: "Create a token", exact: true })
+      .click();
+    await page.getByPlaceholder("Your next idea").fill("Browser test");
+    await page.getByPlaceholder("IDEA", { exact: true }).fill("TEST");
+    await page.getByRole("checkbox").check();
+    await expect(page.locator("form button.primary")).toBeEnabled();
+    await expect(
+      page.getByText("This application is not currently registered.", {
+        exact: false,
+      }),
+    ).not.toBeVisible();
   });
 function assertNoErrors(errors) {
   expect(errors).toEqual([]);
