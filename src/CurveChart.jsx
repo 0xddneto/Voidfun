@@ -79,6 +79,14 @@ export default function CurveChart({ curve, ethUsd, context }) {
     Number(value).toLocaleString("en-US", { maximumSignificantDigits: 5 }) +
     " " +
     currency;
+  const axisPrice = (value) =>
+    value === 0
+      ? "0"
+      : value < 0.001
+        ? Number(value).toExponential(1)
+        : Number(value).toLocaleString("en-US", {
+            maximumSignificantDigits: 3,
+          });
   const pricedHistory = history.map((log) => ({
     ...log,
     price:
@@ -109,8 +117,8 @@ export default function CurveChart({ curve, ethUsd, context }) {
         : Math.min(...points.map((p) => p.y), currentPrice) * 0.92;
   const width = 680,
     height = 300,
-    left = 74,
-    right = 20,
+    left = 116,
+    right = 52,
     top = 22,
     bottom = 38,
     plotW = width - left - right,
@@ -193,10 +201,10 @@ export default function CurveChart({ curve, ethUsd, context }) {
                   x2={width - right}
                   y1={y(val)}
                   y2={y(val)}
-                  stroke="#e0e5d6"
+                  stroke="#393544"
                 />
                 <text x={left - 8} y={y(val) + 4} textAnchor="end">
-                  {displayPrice(val)}
+                  {axisPrice(val)}
                 </text>
               </g>
             );
@@ -214,17 +222,17 @@ export default function CurveChart({ curve, ethUsd, context }) {
               (height - bottom) +
               " Z"
             }
-            fill="#d5edac"
-            opacity=".35"
+            fill="#8d68c2"
+            opacity=".18"
           />
-          <path d={line} fill="none" stroke="#6d8e3a" strokeWidth="2.5" />
+          <path d={line} fill="none" stroke="#c6b2ff" strokeWidth="2.5" />
           {mode === "curve" && (
             <>
               <circle
                 cx={x(current.x)}
                 cy={y(current.y)}
                 r="5"
-                fill="#273d19"
+                fill="#efddff"
               />
               <text
                 x={Math.min(x(current.x) + 9, width - 100)}
@@ -245,7 +253,7 @@ export default function CurveChart({ curve, ethUsd, context }) {
                 cx={x(points.at(-1).x)}
                 cy={y(points.at(-1).y)}
                 r="4"
-                fill="#273d19"
+                fill="#efddff"
               />
               <text x={left} y={height - 15}>
                 {new Date(history[0].time * 1000).toLocaleTimeString()}
@@ -262,10 +270,10 @@ export default function CurveChart({ curve, ethUsd, context }) {
                 x2={x(tip.x)}
                 y1={top}
                 y2={height - bottom}
-                stroke="#80966a"
+                stroke="#a88ac9"
                 strokeDasharray="3 3"
               />
-              <circle cx={x(tip.x)} cy={y(tip.y)} r="5" fill="#293d1c" />
+              <circle cx={x(tip.x)} cy={y(tip.y)} r="5" fill="#efddff" />
               <text
                 x={Math.max(left + 10, Math.min(x(tip.x), width - 110))}
                 y={top + 12}
